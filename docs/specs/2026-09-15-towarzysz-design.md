@@ -6,14 +6,17 @@
 
 ## Summary
 
-A pixel-art companion who lives in the Arkadia web client's footer. She is rolled once per
-character — random look, random voice, random name — reacts to what happens in your session
+A pixel-art companion who lives in the Arkadia web client's footer. They are rolled once per
+character — random archetype, look, voice and name — and react to what happens in your session
 with small animations, and occasionally says something in a speech bubble above the footer.
-She has a mood that drifts with how the session is going, which colours what she says. She
-has no needs, cannot be neglected, and cannot die.
+They have a mood that drifts with how the session is going, which colours what they say. They
+have no needs, cannot be neglected, and cannot die.
 
-The design goal is a companion, not a chore: she should be pleasant company in peripheral
+The design goal is a companion, not a chore: they should be pleasant company in peripheral
 vision and easy to forget about, never a system that demands maintenance.
+
+The companion may be any gender or none — human, orc, goblin, ogre or something stranger. That
+is part of the roll, so this document says "they".
 
 ## Decisions
 
@@ -24,12 +27,13 @@ changes.
 |---|----------|-----------|
 | 1 | **Pixel sprite**, not emoji or ASCII | Only medium that animates expressively at footer size. Emoji renders differently per OS; ASCII at chip size is a face, not a character. |
 | 2 | Art from **KingBell's Pixel Art Sprite Mixer** | Removes the art budget entirely — 115 ready animations including attacks, walks, deaths. CC-BY 4.0 assets, MIT code, free for commercial use. |
-| 3 | She is a **companion**, a separate person — not a mirror of the player | A companion can comment on you. An avatar can only echo you. |
+| 3 | The sprite is a **companion**, a separate person — not a mirror of the player | A companion can comment on you. An avatar can only echo you. |
 | 4 | **Rolled, not designed** — random look, voice and name, one per character | You get attached to what you were dealt in a way you never do to what you configured. Also guarantees variety across characters and players with zero design effort. |
-| 5 | Speech goes in a **bubble over the footer**, never into the game output | Keeps the game log clean and keeps her ignorable. Explicitly chosen over printing lines via `api.output.print()`. |
+| 5 | Speech goes in a **bubble over the footer**, never into the game output | Keeps the game log clean and keeps them ignorable. Explicitly chosen over printing lines via `api.output.print()`. |
 | 6 | **Voice packs in JSON**, randomly assigned | The voice is the part you will tinker with for months; that must not mean touching TypeScript. New voices become new files. |
-| 7 | **Mood that drifts**, no decay and no needs | One number that biases line selection — the cheapest thing that makes her a person rather than a soundboard. The full tamagotchi (hunger, neglect, consequences) was considered and rejected: it contradicts every other choice here. |
-| 8 | **Restraint is a feature** | A companion who comments on everything is noise within an hour and muted forever. Cooldowns, per-category mutes and low speech probability for common events are core requirements, not polish. |
+| 7 | **Mood that drifts**, no decay and no needs | One number that biases line selection — the cheapest thing that makes them a person rather than a soundboard. The full tamagotchi (hunger, neglect, consequences) was considered and rejected: it contradicts every other choice here. |
+| 8 | **Only face-visible archetypes** — magician, wizard, villager, monster, ogre, orc, goblin | At footer size the face does all the acting. A full helmet hides the eyes and the companion stops reading as alive. This rules out most armoured-knight parts regardless of how good they look. |
+| 9 | **Restraint is a feature** | A companion who comments on everything is noise within an hour and muted forever. Cooldowns, per-category mutes and low speech probability for common events are core requirements, not polish. |
 
 ## Non-goals
 
@@ -37,6 +41,7 @@ changes.
 - No evolution or gear progression in v1 (deferred; see Deferred).
 - No printing into the game output.
 - No player-facing character creator — rolling is the point.
+- No closed helmets or face-covering headgear, ever — including in any later gear progression.
 - No network calls at runtime. Assets are bundled.
 
 ## Architecture
@@ -77,8 +82,13 @@ client event
 ## Data model
 
 ```ts
+type Archetype =
+  | 'magician' | 'wizard' | 'villager'      // human-ish, faces visible
+  | 'monster'  | 'ogre'  | 'orc' | 'goblin'; // not human, faces very visible
+
 interface CompanionSpec {
-  name: string;          // from the name pool
+  archetype: Archetype;
+  name: string;          // from that archetype's name pool
   voiceId: string;       // key into voices.json
   palette: {             // applied to the sprite sheet at load
     skin: string; hair: string; armour: string; belt: string; legs: string;
@@ -105,10 +115,14 @@ arriving late or changing.
 
 ### Rolling
 
+The roll picks, in order: **archetype**, then a name from that archetype's pool, then a voice,
+then the palette and parts. Voice is drawn independently of archetype — a goblin who speaks as
+the *Ponury wieszcz* is exactly the kind of pairing that makes rolling worth doing.
+
 The roll is **deterministic from a seed**: `hash(characterName + ":" + rerollsUsed)`. The same
 character always gets the same companion even if `localStorage` is cleared, which means losing
 your storage does not lose your companion. A reroll increments `rerollsUsed`, changing the seed.
-**One reroll only**, so she is someone you have had since the beginning rather than a slot
+**One reroll only**, so this is someone you have had since the beginning rather than a slot
 machine.
 
 ## Mood
@@ -124,6 +138,15 @@ A single scalar in `[-1, +1]`, starting at `0`.
 
 The point of the mood is that the same event draws a different remark on a good night than
 after your third death.
+
+## Name pools
+
+One pool per archetype, so the name matches what you were dealt. All ASCII-folded.
+
+| Archetype | Pool |
+|---|---|
+| villager, magician, wizard | Vesna, Milena, Radost, Zbrozek, Dobrawa, Jarogniew, Wysza, Lutobor, Swietlana, Chwalibog, Niegoslaw, Ratmir, Bozena, Sulislaw, Dziwisz, Rada |
+| orc, goblin, ogre, monster | Zgrzyt, Grzmot, Brzyd, Klak, Wyrko, Szczerb, Mlask, Kudl, Chrup, Bulgot, Zgaga, Truchlo |
 
 ## Voice and restraint
 
@@ -142,7 +165,7 @@ after your third death.
 }
 ```
 
-Missing mood bucket falls back to `spokojnie`; missing category means she stays silent.
+Missing mood bucket falls back to `spokojnie`; missing category means they stay silent.
 
 All user-facing text is **ASCII-folded Polish**, matching the rest of the client (`Mowilem`,
 not `Mówiłem`). This is the existing convention in `arkadia-konfetti` and the client's own
@@ -153,14 +176,16 @@ scripts.
 - Global cooldown, default **45 s**. A line that would violate it is dropped, never queued.
 - Per-category cooldown, longer for common events.
 - Per-category speech probability: rare events approach 100 % (death, max improve), common
-  events sit low (kill ≈ 8 %). She should stay quiet through twenty kills and say something
+  events sit low (kill ≈ 8 %). They should stay quiet through twenty kills and say something
   about the twenty-first.
 - Global mute and per-category mutes, persisted.
-- Animation is **not** gated by any of this. She always reacts visually; she rarely speaks.
+- Animation is **not** gated by any of this. They always react visually; they rarely speak.
 
 ## Rendering
 
-- The sprite sheet ships **bundled as a data URI** (esbuild `loader: { '.png': 'dataurl' }`),
+- One sheet per archetype, each trimmed to the frames the primitives actually use. Selection
+  rule for any part: **if it covers the eyes, it is out.**
+- The sprite sheets ship **bundled as data URIs** (esbuild `loader: { '.png': 'dataurl' }`),
   so there is no runtime fetch and no CORS surface. Bundle size needs checking once a real
   sheet is in hand; if it is uncomfortable, fall back to a trimmed sheet with only the frames
   actually used.
@@ -230,7 +255,7 @@ Rendering and UI are verified by hand in the client.
 
 ## Deferred
 
-- **Evolution / gear progression** — she gears up as the character does. Wants the Mixer's
+- **Evolution / gear progression** — the companion gears up as the character does. Wants the Mixer's
   armour parts and a milestone ladder; a natural v2.
 - **More voices** — trivial to add once the JSON contract exists; possibly community-authored.
 - **A second companion** shown alongside — considered and dropped for footer space.
@@ -241,7 +266,8 @@ Rendering and UI are verified by hand in the client.
 
 1. Repo and plugin name — `arkadia-towarzysz` / "Towarzysz" is a placeholder chosen to match
    the `arkadia-notatnik` / `arkadia-konfetti` naming. Trivial to change before first commit.
-2. Which sprite sheet to pull from the Mixer, and how many frames it needs to carry.
+2. Which of the seven archetype sheets to pull first, and how many frames each needs to carry.
+   Starting with two (one human-ish, one monstrous) would prove the roll without seven sets of assets.
 3. Exact v1 event list. The bindings table below is the proposed starting set.
 
 ## Proposed v1 event bindings
