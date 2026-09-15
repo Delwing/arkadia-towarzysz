@@ -233,11 +233,14 @@ const pictureBox = el('div');
 
 function showPicture(canvas: HTMLCanvasElement): void {
   canvas.style.maxWidth = '100%';
-  canvas.style.border = '1px solid var(--line)';
-  canvas.style.borderRadius = '4px';
+  // No border and no radius of our own: the picture brings both, and the
+  // transparent margin around it is a thing to look at rather than hide. The
+  // checks behind it are where you can see how much air there is.
+  canvas.style.background =
+    'repeating-conic-gradient(rgba(128,128,128,.25) 0 25%, transparent 0 50%) 0 0 / 12px 12px';
   pictureBox.textContent = '';
   pictureBox.appendChild(canvas);
-  pictureBox.appendChild(el('div', 'caption', 'Obrazek, tak jak poszedl do schowka.'));
+  pictureBox.appendChild(el('div', 'caption', 'Obrazek, tak jak poszedl do schowka; szachownica to przezroczysty margines.'));
 }
 
 function refreshSpecPanel(): void {

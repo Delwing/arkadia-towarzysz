@@ -21,9 +21,19 @@ import { voiceName } from '../voice/catalog';
 import { frameRect, type LoadedSheet } from '../render/sheet';
 import { ARCHETYPE_LABELS } from './card';
 
-/** The picture, in logical pixels. */
+/** The card inside the picture, in logical pixels. */
 export const PICTURE_W = 344;
 export const PICTURE_H = 170;
+/**
+ * Transparent air around the card, on every side. Chats round the corners of
+ * the images they show, and they round the file rather than a frame around it,
+ * so a card drawn edge to edge arrives in Discord with its corners bitten off.
+ * The margin gives that rounding something to eat that nobody will miss, and
+ * the card keeps a corner of its own inside it, so the shape is one we chose.
+ */
+export const PICTURE_MARGIN = 12;
+/** The card's own corner, comfortably inside the margin. */
+const PICTURE_RADIUS = 8;
 /**
  * Device pixels per logical pixel. The text wants more than one and the sprite
  * wants a whole number, so this multiplies the sprite's own scale rather than
@@ -56,11 +66,14 @@ export type PictureOutcome = 'copied' | 'saved';
  */
 export function drawCompanionPicture(view: PictureView, sheet: LoadedSheet | null, doc: Document = document): HTMLCanvasElement {
   const canvas = doc.createElement('canvas');
-  canvas.width = PICTURE_W * PICTURE_SCALE;
-  canvas.height = PICTURE_H * PICTURE_SCALE;
+  canvas.width = (PICTURE_W + PICTURE_MARGIN * 2) * PICTURE_SCALE;
+  canvas.height = (PICTURE_H + PICTURE_MARGIN * 2) * PICTURE_SCALE;
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('2d context unavailable');
   ctx.scale(PICTURE_SCALE, PICTURE_SCALE);
+  // Everything after this draws the card from its own corner; the translate is
+  // the only line that knows the margin is there.
+  ctx.translate(PICTURE_MARGIN, PICTURE_MARGIN);
   ctx.textBaseline = 'alphabetic';
 
   const { state } = view;
@@ -68,10 +81,12 @@ export function drawCompanionPicture(view: PictureView, sheet: LoadedSheet | nul
 
   // The card, and its edge.
   ctx.fillStyle = PAPER;
-  ctx.fillRect(0, 0, PICTURE_W, PICTURE_H);
+  cardPath(ctx, 0, 0, PICTURE_W, PICTURE_H, PICTURE_RADIUS);
+  ctx.fill();
   ctx.strokeStyle = EDGE;
   ctx.lineWidth = 1;
-  ctx.strokeRect(0.5, 0.5, PICTURE_W - 1, PICTURE_H - 1);
+  cardPath(ctx, 0.5, 0.5, PICTURE_W - 1, PICTURE_H - 1, PICTURE_RADIUS - 0.5);
+  ctx.stroke();
 
   // The alcove the companion stands in: the full height bar the line at the
   // bottom, because the figure is 120 picture pixels tall and the picture is
@@ -117,6 +132,17 @@ export function drawCompanionPicture(view: PictureView, sheet: LoadedSheet | nul
   ctx.globalAlpha = 1;
 
   return canvas;
+}
+
+/** A rounded rectangle as a fresh path; `roundRect` is not everywhere yet. */
+function cardPath(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
 }
 
 /**

@@ -630,7 +630,10 @@ about the client or the registry and had to bend. Each one is easy to revisit.
     own and only the focused one may reach the clipboard. Where the clipboard
     cannot be had at all - an http page, an old browser - it saves a file
     instead, and the button says which of the two happened rather than printing
-    to the game window.
+    to the game window. The card sits inside a 12px transparent margin and has
+    a rounded corner of its own: chats round the corners of the images they
+    show - Discord rounds the file, not a frame around it - and a card drawn
+    edge to edge came back with its corners bitten off.
 23. Archetype labels on the card are the plain Polish nouns (`mag`,
     `goblin`...); they name the archetype, not the companion's gender.
 23b. `metAt` was added to the stored state for the card's "Towarzyszy od ...". A
