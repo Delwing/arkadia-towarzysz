@@ -1,0 +1,222 @@
+{
+  "giermek": {
+    "name": "Wierny giermek",
+    "lines": {
+      "kill": {
+        "spokojnie": ["Czysta robota.", "Jeden mniej. Ide po nastepnego?", "Widzialem to. Ladne.", "Zapisuje w kronice. Strona trzecia."],
+        "zle": ["No. Chociaz tyle.", "Dobrze, ze cos idzie po naszej mysli.", "Jeden mniej. To cos."],
+        "dobrze": ["Legenda rosnie!", "O tym beda spiewac. Moze nie ballady, ale cos.", "Ha! Kolejny!"]
+      },
+      "improve": {
+        "spokojnie": ["Postep! Zapisuje w kronice.", "Rosniemy w sile. My. Znaczy ty.", "Widze roznice. Naprawde."],
+        "zle": ["Wreszcie jakas dobra wiadomosc.", "To mnie troche podnosi na duchu."],
+        "dobrze": ["Kolejny postep! Nie do zatrzymania!", "Sila rosnie, sila rosnie!"]
+      },
+      "improveMax": {
+        "spokojnie": ["Niebotyczne! Kroniki tego nie pomieszcza!", "To jest ten dzien. Czuje to.", "Niebotyczne! Biegne po wino!"],
+        "zle": ["Niebotyczne. Widzisz? Bylo warto."],
+        "dobrze": ["NIEBOTYCZNE! Wiedzialem, wiedzialem!", "Niebotyczne! Kroniki, kroniki!"]
+      },
+      "hurt": {
+        "spokojnie": ["Uwazaj! Bandaze mam przy sobie.", "Auu. To bolalo nawet mnie.", "Zaslaniaj sie, prosze."],
+        "zle": ["Dosc juz tych ran...", "Prosze, nie znowu.", "Nie patrze. Nie moge."],
+        "dobrze": ["Zadrapanie. Nic wielkiego.", "Blizny dodaja powagi. Tak slyszalem."]
+      },
+      "death": {
+        "spokojnie": ["Nie... Wstawaj. Prosze, wstawaj.", "Bede czekac. Zawsze czekam.", "Kronika ma dzis czarna strone."],
+        "zle": ["Znowu. Znowu stoje nad grobem.", "Nie wiem, ile jeszcze zniose.", "Wrocisz. Zawsze wracasz. Prawda?"],
+        "dobrze": ["To tylko potkniecie. Prawda?", "Nie tak mialo byc. Ale wstajemy."]
+      },
+      "loot": {
+        "spokojnie": ["Sakwa ciezsza. Ja poniose!", "Brzeczy ladnie.", "Zloto! Licze dwa razy, dla pewnosci."],
+        "zle": ["Chociaz zloto sie zgadza.", "Cos za cos."],
+        "dobrze": ["Bogactwo! Uczta dzis wieczorem!", "Blysk zlota, blysk chwaly!"]
+      },
+      "spend": {
+        "spokojnie": ["Rozsadny wydatek. Chyba.", "Zapisuje w rachunkach.", "Kupiec sie klania. Chyba nas lubi."],
+        "zle": ["Sakwa chudnie. Znow.", "Trzeba bylo sie targowac."],
+        "dobrze": ["Inwestycja w legende!", "Na dobre rzeczy nie zaluje sie zlota."]
+      },
+      "gemGood": {
+        "spokojnie": ["Ten kamien ma wartosc! Ostroznie z nim.", "Blyszczy jak nalezy.", "Schowaj to gleboko. Bardzo gleboko."],
+        "zle": ["Chociaz kamienie sie udaja."],
+        "dobrze": ["Skarb! Prawdziwy skarb!", "Jubiler zemdleje. Z radosci."]
+      },
+      "gemBad": {
+        "spokojnie": ["Hm. Ladny. Ale to tyle.", "Kamien jak kamien.", "Moze jako przycisk do papieru?"],
+        "zle": ["Nawet kamienie sie od nas odwrocily.", "Szklo. Oczywiscie."],
+        "dobrze": ["Nastepny bedzie lepszy. Na pewno."]
+      },
+      "idle": {
+        "spokojnie": ["Odpoczywasz? Ja popilnuje.", "Cicho tu. Za cicho.", "Poleruje tarcze. Tak na wszelki wypadek."],
+        "zle": ["Moze przerwa dobrze nam zrobi.", "Siedze. Czekam. Mysle."],
+        "dobrze": ["Zasluzona przerwa.", "Odpoczywaj. Kronika poczeka."]
+      }
+    }
+  },
+  "weteran": {
+    "name": "Zgryzliwy weteran",
+    "lines": {
+      "kill": {
+        "spokojnie": ["No wreszcie.", "Za wolno. Ale niech bedzie.", "Widzialem gorsze. Rzadko.", "Trup. Dobra, dalej."],
+        "zle": ["Jeden. Wielkie mi co.", "I co, lepiej ci?", "Tia. Nastepny."],
+        "dobrze": ["Niezle. Nie przyzwyczajaj sie do pochwal.", "Tak sie to robi. Ja bym zrobil szybciej.", "Ho. Ktos tu sie rozkreca."]
+      },
+      "improve": {
+        "spokojnie": ["Postep. Nie wypij tego od razu.", "Cos tam sie nauczylo.", "Postep. Widzialem wolniejsze."],
+        "zle": ["Postep. Szkoda, ze nie w uciekaniu.", "No. Cos w koncu."],
+        "dobrze": ["Idzie ci. Nie zepsuj tego.", "Postep. Dobra, jestem pod wrazeniem. Lekkim."]
+      },
+      "improveMax": {
+        "spokojnie": ["Niebotyczne. Dobra, to bylo dobre.", "No. Teraz idz to wchlonac, zanim cos sie stanie.", "Niebotyczne. Kto by pomyslal."],
+        "zle": ["Niebotyczne. Widzisz, jak sie nie umiera, to idzie."],
+        "dobrze": ["Niebotyczne! Prawie jak ja za mlodu.", "Niebotyczne. Dobra, mozesz sie pochwalic."]
+      },
+      "hurt": {
+        "spokojnie": ["Mowilem, zeby sie zaslaniac.", "Krew leci. Twoja, niestety.", "Auc. To bedzie bolec jutro. Znaczy dzis."],
+        "zle": ["Znowu obrywasz. Widze wzorzec.", "Bandaze sie koncza.", "Uciekaj. Mowie to raz. Dobra, nie raz."],
+        "dobrze": ["Zadrapanie. Widzialem gorsze na treningach.", "Dobra, dobra. Zyjesz."]
+      },
+      "death": {
+        "spokojnie": ["Mowilem, zeby uciekac. Za kazdym razem.", "No i po co to bylo.", "Lezysz. Znowu. Wstawaj."],
+        "zle": ["Trzeci raz? Nie licze juz.", "Widzialem to. Wszyscy widzieli.", "Ja tu jeszcze jestem. Ktos musi."],
+        "dobrze": ["Hm. Nie spodziewalem sie. Wstawaj.", "Nawet najlepszym sie zdarza. Rzadko. Ale."]
+      },
+      "loot": {
+        "spokojnie": ["Zloto. Nie wydaj wszystkiego na piwo.", "Brzeczy. Lubie ten dzwiek.", "Sakwa. Pilnuj jej lepiej niz zycia."],
+        "zle": ["Przynajmniej cos z tego mamy.", "Zloto. Nie naprawi wszystkiego."],
+        "dobrze": ["O, to sie nazywa lup.", "Brzeczy jak nalezy."]
+      },
+      "spend": {
+        "spokojnie": ["Wydane. Bylo potrzebne?", "Kupiec sie cieszy. Ja nie.", "Zloto odeszlo. Jak zawsze."],
+        "zle": ["Znow sakwa lzejsza. Klasyka.", "Wydajesz szybciej, niz zarabiasz."],
+        "dobrze": ["Niech ci bedzie.", "Dobra. Na to nie zaluje."]
+      },
+      "gemGood": {
+        "spokojnie": ["Ten jest cos wart. Nie zgub.", "Niezly kamien. Rzadkosc.", "Schowaj. Nie pokazuj nikomu."],
+        "zle": ["Chociaz kamien porzadny."],
+        "dobrze": ["Ho ho. Wreszcie cos porzadnego.", "Taki kamien to ja bym wzial."]
+      },
+      "gemBad": {
+        "spokojnie": ["Szklo. Mowilem.", "Za to kupisz kawalek chleba. Suchego.", "Kamien. Zwykly. Wyrzuc."],
+        "zle": ["Oczywiscie, ze nic niewarty.", "Smieci. Jak wszystko dzis."],
+        "dobrze": ["Nic. Ale nastepny bedzie."]
+      },
+      "idle": {
+        "spokojnie": ["Spisz? Ja tez bym spal.", "Cisza. Podejrzana.", "Czekam. Umiem czekac."],
+        "zle": ["Gapienie sie w sciane nic nie da.", "Siedzimy. Swietnie."],
+        "dobrze": ["Odpocznij. Zasluzone, tak, tak.", "Cisza. Dobra cisza."]
+      }
+    }
+  },
+  "wieszcz": {
+    "name": "Ponury wieszcz",
+    "lines": {
+      "kill": {
+        "spokojnie": ["Kolejna nic z wyroku losu.", "Krew na ziemi. Zawsze krew na ziemi.", "Tak konczy sie kazda opowiesc.", "Widzialem to w plomieniach."],
+        "zle": ["Zwyciestwo. A jednak cien nie cofa sie.", "Smierc karmi smierc.", "Jedna nic mniej. Splot dalej sie placze."],
+        "dobrze": ["Gwiazdy sprzyjaja. Na razie.", "Wyrocznia mowila o tym dniu.", "Los sie usmiecha. Zebami."]
+      },
+      "improve": {
+        "spokojnie": ["Rosniesz. Cien takze.", "Kazda wiedza ma swoja cene.", "Kolejna nic w splocie."],
+        "zle": ["Male swiatlo w dlugiej nocy.", "Postep. Nawet w mroku."],
+        "dobrze": ["Przepowiednia sie wypelnia.", "Gwiazdy ukladaja sie po twojej stronie."]
+      },
+      "improveMax": {
+        "spokojnie": ["Niebotyczne. Nawet ja tego nie przewidzialem.", "Szczyt. Za szczytem jest tylko zejscie... albo wchloniecie.", "Niebotyczne. Wyrocznia milczy z wrazenia."],
+        "zle": ["Niebotyczne. Nawet noc ma swoje gwiazdy."],
+        "dobrze": ["Niebotyczne! Los dzis usmiecha sie zebami.", "Niebotyczne. Tak bylo napisane."]
+      },
+      "hurt": {
+        "spokojnie": ["Cialo pamieta kazde uderzenie.", "Kruche jest to, co smiertelne.", "Krew. Znak."],
+        "zle": ["Widzialem ten cios we snie.", "Nadchodzi. Czuje to.", "Zaslona drzy."],
+        "dobrze": ["Blizna jak kazda inna.", "Los tylko sprawdza."]
+      },
+      "death": {
+        "spokojnie": ["Przepowiedzialem to. Nikt nie slucha.", "Zaslona opadla. I znow sie podniesie.", "Koniec. Jeden z wielu."],
+        "zle": ["Znow. I znow. I znow.", "Nie mam juz lez na ten widok.", "Petla sie zaciska."],
+        "dobrze": ["Nawet jasne dni maja swoj koniec.", "Nie tak to widzialem. Ale los nie pyta."]
+      },
+      "loot": {
+        "spokojnie": ["Zloto blyszczy. Krotko.", "Sakwa pelna, serce puste?", "Moneta. Ma dwie strony. Zawsze."],
+        "zle": ["Blichtr. Nic wiecej.", "Zloto nie kupi jutra."],
+        "dobrze": ["Zloto plynie ku tobie. Uwazaj na jego prad.", "Bogactwo. Na razie."]
+      },
+      "spend": {
+        "spokojnie": ["Odeszlo, jak wszystko.", "Moneta wraca do obiegu. My nie.", "Wydane. Rzeka plynie."],
+        "zle": ["Wydajesz to, czego nie masz.", "Sakwa lzejsza. Dusza nie."],
+        "dobrze": ["Niech i tak bedzie.", "Zloto wraca do ziemi. Slusznie."]
+      },
+      "gemGood": {
+        "spokojnie": ["Kamien nosi w sobie stare swiatlo.", "Ten kamien widzial wiecej niz my.", "Cenny. I dlatego niebezpieczny."],
+        "zle": ["Ziemia oddaje skarb. Cos chce w zamian."],
+        "dobrze": ["Ziemia oddala skarb. Rzadko to robi.", "Swiatlo w kamieniu. Dobry znak."]
+      },
+      "gemBad": {
+        "spokojnie": ["Martwy kamien. Jak wszystko w koncu.", "Pyl, nie skarb.", "Kamien bez swiatla."],
+        "zle": ["Nawet ziemia dzis kpi.", "Nic. Jak przewidzialem."],
+        "dobrze": ["Nic. Ale nie wszystko musi blyszczec."]
+      },
+      "idle": {
+        "spokojnie": ["Cisza przed czyms. Zawsze przed czyms.", "Slucham wiatru. Nic dobrego nie mowi.", "Bezruch. Splot czeka."],
+        "zle": ["Bezruch. Tak zaczyna sie koniec.", "Czekamy. Na co, nie wiem."],
+        "dobrze": ["Spokoj. Niech trwa, poki trwa.", "Cisza. Dzis laskawa."]
+      }
+    }
+  },
+  "maloomowny": {
+    "name": "Maloomowny",
+    "lines": {
+      "kill": {
+        "spokojnie": ["No.", "Mhm.", "Dobra.", "Trup."],
+        "zle": ["Tia.", "No."],
+        "dobrze": ["Ha.", "Niezle."]
+      },
+      "improve": {
+        "spokojnie": ["O.", "Postep."],
+        "zle": ["Wreszcie."],
+        "dobrze": ["Dobrze.", "O!"]
+      },
+      "improveMax": {
+        "spokojnie": ["Niebotyczne.", "O!"],
+        "zle": ["Niebotyczne. No."],
+        "dobrze": ["Brawo.", "Niebotyczne!"]
+      },
+      "hurt": {
+        "spokojnie": ["Auc.", "Uwaga."],
+        "zle": ["Znowu.", "Uciekaj."],
+        "dobrze": ["Nic.", "Ech."]
+      },
+      "death": {
+        "spokojnie": ["...", "Hm."],
+        "zle": ["Znowu.", "..."],
+        "dobrze": ["Eh.", "..."]
+      },
+      "loot": {
+        "spokojnie": ["Zloto.", "Brzek."],
+        "zle": ["Cos."],
+        "dobrze": ["O.", "Ladnie."]
+      },
+      "spend": {
+        "spokojnie": ["Wydane.", "Mniej."],
+        "zle": ["Znow."],
+        "dobrze": ["Dobra."]
+      },
+      "gemGood": {
+        "spokojnie": ["Wart.", "Dobry."],
+        "zle": ["Chociaz to."],
+        "dobrze": ["O.", "Ho."]
+      },
+      "gemBad": {
+        "spokojnie": ["Szklo.", "Nie."],
+        "zle": ["Jasne."],
+        "dobrze": ["Trudno."]
+      },
+      "idle": {
+        "spokojnie": ["...", "Zzz."],
+        "zle": ["Cisza."],
+        "dobrze": ["Spokoj."]
+      }
+    }
+  }
+}

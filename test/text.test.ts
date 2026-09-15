@@ -1,0 +1,42 @@
+import { describe, expect, it } from 'vitest';
+import { parsePolishNumber } from '../text/polishNumbers';
+import { coinsToCopper, formatCopper } from '../text/coins';
+
+describe('polish numbers', () => {
+  it('parses units, tens, hundreds and thousands', () => {
+    expect(parsePolishNumber('jeden')).toBe(1);
+    expect(parsePolishNumber('jedna')).toBe(1);
+    expect(parsePolishNumber('dwie')).toBe(2);
+    expect(parsePolishNumber('dziewietnascie')).toBe(19);
+    expect(parsePolishNumber('dwadziescia trzy')).toBe(23);
+    expect(parsePolishNumber('sto piecdziesiat dwa')).toBe(152);
+    expect(parsePolishNumber('tysiac')).toBe(1000);
+    expect(parsePolishNumber('dwa tysiace trzysta')).toBe(2300);
+    expect(parsePolishNumber('piec tysiecy siedem')).toBe(5007);
+    expect(parsePolishNumber('42')).toBe(42);
+  });
+
+  it('returns null with no number present', () => {
+    expect(parsePolishNumber('zlote monety')).toBeNull();
+    expect(parsePolishNumber('')).toBeNull();
+  });
+});
+
+describe('coins', () => {
+  it('values coin phrases in copper', () => {
+    expect(coinsToCopper('Bierzesz dwadziescia trzy zlote monety z ciala szczura.')).toBe(23 * 240);
+    expect(coinsToCopper('Bierzesz jedna srebrna monete.')).toBe(12);
+    expect(coinsToCopper('Bierzesz zlota monete.')).toBe(240);
+    expect(coinsToCopper('Bierzesz dwie mithrylowe monety, trzy zlote monety i piec miedzianych monet z sakwy.')).toBe(
+      2 * 24_000 + 3 * 240 + 5,
+    );
+    expect(coinsToCopper('Bierzesz zardzewialy miecz z ciala szczura.')).toBe(0);
+    expect(coinsToCopper('Bierzesz monety.')).toBe(0);
+  });
+
+  it('formats copper', () => {
+    expect(formatCopper(0)).toBe('0 mied');
+    expect(formatCopper(253)).toBe('1 zl 1 sr 1 mied');
+    expect(formatCopper(480)).toBe('2 zl');
+  });
+});
