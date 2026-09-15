@@ -72,7 +72,12 @@ export function roll(characterName: string, rerollsUsed: number): CompanionSpec 
   const voiceId = pick(rng, VOICE_IDS);
 
   // Parts before the palette: the weapon colour only exists when there is one.
-  const hairLong = rng() < (isHumanish(archetype) ? 0.5 : 0.2);
+  // The first of the two draws used to be `hairLong`, which the Mixer art never
+  // showed - one head per archetype - so the card was announcing a haircut
+  // nobody could see. The flag is gone; the draw stays, because the roll is a
+  // sequence and removing a step from the middle of it hands every existing
+  // companion a different one.
+  rng();
   // Wizards and magicians carry a staff more often than not; ogres rarely
   // bother with a weapon at all.
   const weaponChance = archetype === 'wizard' || archetype === 'magician' ? 0.75 : archetype === 'ogre' ? 0.3 : 0.55;
@@ -80,7 +85,7 @@ export function roll(characterName: string, rerollsUsed: number): CompanionSpec 
 
   const palette = rollPalette(rng, archetype, hasWeapon);
 
-  return { archetype, name, voiceId, palette, parts: { hairLong, hasWeapon } };
+  return { archetype, name, voiceId, palette, parts: { hasWeapon } };
 }
 
 const HEX = /^#[0-9a-f]{6}$/i;
@@ -99,6 +104,6 @@ export function isValidSpec(value: unknown): value is CompanionSpec {
   }
   if (palette.weapon !== null && (typeof palette.weapon !== 'string' || !HEX.test(palette.weapon))) return false;
   const parts = spec.parts as Record<string, unknown> | undefined;
-  if (!parts || typeof parts.hairLong !== 'boolean' || typeof parts.hasWeapon !== 'boolean') return false;
+  if (!parts || typeof parts.hasWeapon !== 'boolean') return false;
   return true;
 }

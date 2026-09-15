@@ -82,7 +82,7 @@ function nameFor(archetype: Archetype): string {
   for (let i = 0; i < 20_000; i++) {
     const name = `T${i}`;
     const spec = roll(name, 0);
-    if (spec.archetype === archetype && spec.parts.hairLong) return name;
+    if (spec.archetype === archetype) return name;
   }
   return 'T0';
 }
@@ -157,10 +157,7 @@ function applySpec(next: CompanionSpec): void {
   }
   refreshSpecPanel();
   refreshCard();
-  log(
-    `nowy towarzysz: <i>${spec.name}</i> - ${ARCHETYPE_LABELS[spec.archetype]}, glos ${voiceName(spec.voiceId)}` +
-      `${spec.parts.hairLong ? ', dlugie wlosy' : ''}`,
-  );
+  log(`nowy towarzysz: <i>${spec.name}</i> - ${ARCHETYPE_LABELS[spec.archetype]}, glos ${voiceName(spec.voiceId)}`);
 }
 
 /**
@@ -247,8 +244,7 @@ function refreshSpecPanel(): void {
   specBox.textContent = '';
   const line = el('div');
   line.innerHTML =
-    `<b>${spec.name}</b> - ${ARCHETYPE_LABELS[spec.archetype]}, glos: ${voiceName(spec.voiceId)}, ` +
-    `${spec.parts.hairLong ? 'dlugie wlosy' : 'krotkie wlosy'}` +
+    `<b>${spec.name}</b> - ${ARCHETYPE_LABELS[spec.archetype]}, glos: ${voiceName(spec.voiceId)}` +
     (sheet ? '' : ' <i>(arkusz sie nie zbudowal - rysowana jest postac zastepcza)</i>');
   specBox.appendChild(line);
   const swatches = row();
@@ -340,12 +336,7 @@ function companionPanel(): HTMLDivElement {
     byArchetype.appendChild(button(ARCHETYPE_LABELS[archetype], () => applySpec(roll(nameFor(archetype), 0))));
   }
   box.appendChild(byArchetype);
-  box.appendChild(
-    row(
-      button('Losowy', () => applySpec(roll(`X${Math.floor(Math.random() * 100000)}`, 0))),
-      button('Krotkie wlosy', () => applySpec({ ...spec, parts: { ...spec.parts, hairLong: false } })),
-    ),
-  );
+  box.appendChild(row(button('Losowy', () => applySpec(roll(`X${Math.floor(Math.random() * 100000)}`, 0)))));
   specBox.style.marginTop = '8px';
   box.appendChild(specBox);
   return box;

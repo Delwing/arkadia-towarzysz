@@ -645,6 +645,17 @@ about the client or the registry and had to bend. Each one is easy to revisit.
     it there would hand every character a different companion and orphan the
     saved one. `text/properName.ts` does it on the way out instead: the picture's
     bottom line and the line the plugin logs when the character loads.
+23d. **`parts.hairLong` is gone; its draw is not.** The flag survived the move
+    to Mixer art, where a head is one sprite per archetype and hair length is
+    not drawn at all - so the card was announcing a haircut nobody could see,
+    and the showcase had a button for it. The field is out of `CompanionSpec`,
+    out of `isValidSpec` and off the card. What stays is the bare `rng()` where
+    it used to be drawn: the roll is a sequence, and dropping a step from the
+    middle of it would hand every existing companion a different one. Checked
+    by rolling 303 names at two reroll counts before and after - identical.
+    `parts.hasWeapon` is the same kind of survivor and is kept for the same
+    reason (see 12j), but it still decides the weapon colour, so it is a field
+    rather than a burned draw.
 
 ## Tooling
 

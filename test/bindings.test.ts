@@ -378,7 +378,7 @@ describe('stances', () => {
       name: 'Test',
       voiceId: 'giermek',
       palette: { skin: '#000000', hair: '#000000', armour: '#000000', belt: '#000000', legs: '#000000', weapon: null },
-      parts: { hairLong: false, hasWeapon },
+      parts: { hasWeapon },
     });
     expect(guardFor(spec('wizard', true))).toBe('guardStaff');
     expect(guardFor(spec('magician', false))).toBe('guardStaff');
@@ -433,7 +433,7 @@ describe('stances', () => {
           name: 'Test',
           voiceId: 'giermek',
           palette: { skin: '#000000', hair: '#000000', armour: '#000000', belt: '#000000', legs: '#000000', weapon: null },
-          parts: { hairLong: false, hasWeapon: true },
+          parts: { hasWeapon: true },
         }),
       );
     }

@@ -29,7 +29,7 @@ function spec(overrides: Partial<CompanionSpec> = {}): CompanionSpec {
       legs: '#ffff00',
       weapon: '#ff00ff',
     },
-    parts: { hairLong: true, hasWeapon: true },
+    parts: { hasWeapon: true },
     ...overrides,
   };
 }

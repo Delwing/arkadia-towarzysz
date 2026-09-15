@@ -6,7 +6,7 @@
  * There is no sheet file, no fetch and no recolour pass. The sheet is built
  * from the spec whenever a companion is loaded or rerolled - a handful of
  * times per session - and the pixels come out in the companion's own colours,
- * with a weapon or long hair only if they were rolled with them.
+ * carrying a weapon only if one was rolled.
  *
  * `frameRect` is pure, so it is tested with the rest.
  */

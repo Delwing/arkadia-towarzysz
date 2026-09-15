@@ -218,17 +218,6 @@ function swatches(state: PersistedState): HTMLDivElement {
 }
 
 /**
- * The rolled details the art actually shows. `parts.hasWeapon` used to be one
- * of them and is not any more: every companion draws a weapon in a fight now
- * (see `guardFor`), so saying "bez broni" here would contradict the footer.
- * The flag is still rolled, because the roll's draws are what decide every
- * companion in existence and dropping one would hand everybody a new one.
- */
-function traits(state: PersistedState): string {
-  return state.spec.parts.hairLong ? 'dlugie wlosy' : 'krotkie wlosy';
-}
-
-/**
  * Since when. Flatly: "razem od" reads like an anniversary, which is not what
  * a companion is - the picture says it the same way.
  */
@@ -301,7 +290,6 @@ export function buildCompanionCard(view: CardView, handlers: CardHandlers): HTML
   const who = el('div', undefined, { flex: '1 1 auto', minWidth: '0' });
   who.appendChild(el('div', state.spec.name, { fontWeight: '700', fontSize: '15px', lineHeight: '1.2' }));
   who.appendChild(el('div', ARCHETYPE_LABELS[state.spec.archetype], { opacity: '0.85' }));
-  who.appendChild(el('div', traits(state), { opacity: '0.7', fontSize: '11px' }));
   who.appendChild(
     el('div', `mowi jak ${voiceName(state.settings.voiceOverride ?? state.spec.voiceId).toLowerCase()}`, {
       opacity: '0.7',

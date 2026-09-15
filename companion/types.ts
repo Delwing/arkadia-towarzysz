@@ -43,7 +43,7 @@ export interface CompanionSpec {
   voiceId: string;
   /** Applied to the sprite sheet at load. */
   palette: Palette;
-  parts: { hairLong: boolean; hasWeapon: boolean };
+  parts: { hasWeapon: boolean };
 }
 
 /** Speech categories. One per reaction kind; the voice packs are keyed by them. */
