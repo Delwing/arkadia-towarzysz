@@ -1,7 +1,7 @@
 /**
  * The `/towarzysz` settings panel: mute toggles, voice override, cooldown,
- * idle time, a "say something" test, the one-time reroll behind a
- * confirmation, and the attribution the art licence asks for.
+ * idle time, a "say something" test, and the one-time reroll behind a
+ * confirmation.
  *
  * Plain DOM, no framework: the registry compiles plugins with no dependencies.
  */
@@ -11,7 +11,8 @@ import { bucketLabel } from '../companion/mood';
 import { MAX_REROLLS } from '../companion/state';
 import { VOICE_IDS, voiceName } from '../voice/catalog';
 
-export const ATTRIBUTION_URL = 'https://kingbell.itch.io/pixel-sprite-mixer';
+/** The plugin's own page; the sprite art is this repository's, so there is nobody else to credit. */
+export const ATTRIBUTION_URL = 'https://github.com/Delwing/arkadia-towarzysz';
 
 export const CATEGORY_LABELS: Record<Category, string> = {
   kill: 'Zabicia',
@@ -21,6 +22,7 @@ export const CATEGORY_LABELS: Record<Category, string> = {
   death: 'Smierc',
   loot: 'Lupy (monety)',
   spend: 'Wydatki',
+  sell: 'Sprzedaz',
   gemGood: 'Cenne kamienie',
   gemBad: 'Kiepskie kamienie',
   idle: 'Bezczynnosc',
@@ -195,8 +197,8 @@ export function buildSettingsPanel(view: SettingsView, handlers: SettingsHandler
 
 function attribution(): HTMLDivElement {
   const box = el('div', undefined, { marginTop: '10px', paddingTop: '6px', borderTop: '1px solid rgba(128,128,128,.35)', fontSize: '10px', opacity: '0.75' });
-  box.appendChild(document.createTextNode('Grafika: Pixel Art Sprite Mixer, KingBell (CC-BY 4.0) - '));
-  const link = el('a', ATTRIBUTION_URL);
+  box.appendChild(document.createTextNode("Grafika: wlasne pikselowe sprite'y - "));
+  const link = el('a', 'arkadia-towarzysz');
   link.href = ATTRIBUTION_URL;
   link.target = '_blank';
   link.rel = 'noopener noreferrer';

@@ -4,9 +4,8 @@ name: Publish plugin
 # pluginow Arkadii. Rejestr sam kompiluje pakiet esbuildem, wiec nie wysylamy
 # gotowego bundla - dzieki temu na stronie pluginu widac prawdziwy kod.
 #
-# Rejestr rozumie tylko importy wzgledne plikow .ts/.js/.json, dlatego arkusze
-# sprite sa wtopione w render/sheets.ts (tools/embed-sheets.mjs), a nie
-# importowane jako .png.
+# Rejestr rozumie tylko importy wzgledne plikow .ts/.js/.json - i to wystarcza:
+# grafika to kod (render/sprites.ts), w repo nie ma zadnych plikow graficznych.
 #
 # Uwierzytelnienie: GitHub OIDC (zaufany wydawca), bez zadnych sekretow.
 # W rejestrze plugin musi juz istniec i miec ustawionego zaufanego wydawce:

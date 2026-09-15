@@ -1,8 +1,8 @@
 /**
- * The procedural pixel figure: what is drawn when there is no sprite sheet for
- * the archetype, or the sheet failed to load. The plugin must never render
- * nothing, so this has to stand on its own - a readable face, arms, a weapon,
- * and enough archetype flavour that a goblin and a wizard look different.
+ * The procedural pixel figure: what is drawn when the sprite sheet could not
+ * be built at all. The plugin must never render nothing, so this has to stand
+ * on its own - a readable face, arms, a weapon, and enough archetype flavour
+ * that a goblin and a wizard look different.
  *
  * Coordinates are logical sprite pixels on a FIGURE_W x FIGURE_H grid with the
  * feet on the last row. The caller sets up the canvas transform.
@@ -10,21 +10,12 @@
 
 import type { Archetype, CompanionSpec } from '../companion/types';
 import type { Pose } from './animator';
+import { shade } from './colour';
 
 export const FIGURE_W = 12;
 export const FIGURE_H = 16;
 
 type Px = (x: number, y: number, color: string) => void;
-
-export function shade(hex: string, factor: number): string {
-  const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex);
-  if (!m) return hex;
-  const to = (s: string) =>
-    Math.max(0, Math.min(255, Math.round(parseInt(s, 16) * factor)))
-      .toString(16)
-      .padStart(2, '0');
-  return `#${to(m[1] as string)}${to(m[2] as string)}${to(m[3] as string)}`;
-}
 
 function row(px: Px, y: number, x0: number, x1: number, color: string): void {
   for (let x = x0; x <= x1; x++) px(x, y, color);

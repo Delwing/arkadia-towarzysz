@@ -24,9 +24,10 @@ companion/mood.ts      mood scalar: nudge, decay, bucket
 voice/voices.json      the four voice packs
 voice/catalog.ts       typed access to voices.json
 voice/speak.ts         line selection + restraint (cooldowns, probability, mutes)
-render/sheet.ts        sprite sheet load, palette recolour, frame extraction
-render/sheets.ts       GENERATED: embedded sheets (tools/embed-sheets.mjs)
-render/fallback.ts     procedural pixel figure, used when there is no sheet
+render/sprites.ts      the sprite art: one companion -> a sheet of pixels (pure)
+render/sheet.ts        that buffer -> an offscreen canvas, plus frame extraction
+render/colour.ts       hex/rgb and shading helpers
+render/fallback.ts     procedural pixel figure, drawn if no sheet can be built
 render/animator.ts     animation primitives + intensity -> per-frame pose
 ui/chip.ts             footer component: canvas, name, mood label
 ui/bubble.ts           speech bubble anchored above the chip
@@ -36,12 +37,14 @@ events/sources.ts      client events and triggers -> game events
 text/polishNumbers.ts  "dwadziescia trzy" -> 23
 text/coins.ts          coin phrases -> copper
 test/                  Vitest, DOM-free modules only
-tools/embed-sheets.mjs assets/sheets/*.png -> render/sheets.ts
+tools/preview-sprites.mjs  a contact sheet of the art, to look at a change
+tools/png.mjs          dependency-free RGBA PNG encoder, for that preview
 ```
 
-Nothing in `companion/`, `voice/`, `events/bindings.ts` or `text/` touches the
-DOM, so all of it is unit-tested. Rendering and UI are verified by hand in the
-client.
+Nothing in `companion/`, `voice/`, `events/bindings.ts`, `text/` or
+`render/sprites.ts` touches the DOM, so all of it is unit-tested - the sprite
+art included, since it is a pure pixel buffer until `render/sheet.ts` puts it
+on a canvas. The canvas and UI layers are verified by hand in the client.
 
 Other files: `plugin.json` is the registry manifest (keep its `version` in sync
 with `package.json` and `PLUGIN_VERSION` in `plugin.ts`); `DESCRIPTION.md` is the
@@ -76,9 +79,40 @@ That has two consequences:
 
 - The publish zip carries `plugin.json`, `plugin.ts` and the module folders
   (see `.github/workflows/publish.yml`), not `dist/`.
-- Sprite sheets cannot be imported as `.png`. They are embedded as data URIs
-  into `render/sheets.ts` by `yarn embed-sheets` and committed. See
-  `assets/sheets/README.md` for the input format.
+- There are no image files to publish. The sprite art is code
+  (`render/sprites.ts`), which the registry compiles like any other module.
+
+## Sprite art
+
+There is no sprite sheet in the repository and none in the bundle. The art is a
+function: `render/sprites.ts` draws one companion's whole sheet - 16x16 frames,
+four frame columns by nine animation rows - as a plain pixel buffer, and
+`render/sheet.ts` puts that buffer on an offscreen canvas the chip draws from.
+A sheet is built when a character loads or rerolls, a few times per session,
+in well under a millisecond.
+
+Generating per companion rather than per archetype is what keeps it simple: the
+frames come out in the rolled colours directly, so there is no palette swap, and
+a companion rolled without a weapon or without long hair simply never has one
+drawn - no erasing, no four sheets per archetype for the combinations of
+`parts`.
+
+To look at a change without starting the client:
+
+```
+yarn preview-sprites                          # sprites-preview.png, one companion per archetype
+yarn preview-sprites out.png Delwing Zbyszek  # particular characters
+```
+
+Two rules hold the art together. Frames are 16 pixels tall because the chip
+scales a frame to the fallback figure's `FIGURE_H`, so at 16 one sheet pixel is
+exactly one screen pixel and nothing blurs. And the animator and the frames
+split the motion: `render/animator.ts` moves, rotates and squashes the whole
+figure, the frames carry only what it cannot move - limbs, eyes, mouth. Nothing
+is pre-rotated and the jumps are not drawn.
+
+`render/fallback.ts` is the safety net, drawn directly if a sheet cannot be
+built at all.
 
 ## How the reactions work
 
@@ -98,10 +132,11 @@ client event
 | `gmcp.char.state.improve` climbs | `cheer` | `improve` | +0.25 |
 | `improve` reaches 15 | `cheer` x2.5 | `improveMax` | +0.45 |
 | `gmcp.char.state.hp` drops (condition index 0..6) | `flinch`, scales with the drop | `hurt` | -0.05 per level |
-| `reset` from the client's PlayerIdentity after a respawn | `topple` | `death` | -0.35 |
+| `Umierasz.` (or a `reset` after a respawn, if the line was missed) | `topple` | `death` | -0.35 |
 | `Bierzesz ... monet ...` / `Dostajesz ...` / `wyplaca ci ... monet` | `gulp`, scales with the copper value | `loot` | up to +0.15 |
-| `Kupujesz ...` / `Placisz ...` | `slump` | `spend` | 0 |
-| gem valuation >= 10 gold | `glitter` | `gemGood` | +0.10 |
+| `Kupujesz ...` / `Placisz ...` / `... zgarnia ... monet` | `slump`, scales with the price when the line gives one | `spend` | 0 |
+| `Sprzedajesz ...` | `gulp` x0.8 - the coins, if any, land separately | `sell` | +0.05 |
+| gem valuation >= 1 mithryl | `glitter` | `gemGood` | +0.10 |
 | gem valuation < 1 gold | `slump` | `gemBad` | -0.02 |
 | no command for 5 min (configurable) | `doze` (until the next command) | `idle` | 0 |
 
@@ -118,7 +153,8 @@ localStorage is unavailable the plugin runs from memory for the session.
 
 ## Licensing
 
-Sprite assets are from KingBell's
+The sprite art is this repository's own: `render/sprites.ts` draws it, so it
+carries the same licence as the rest of the plugin and needs no third-party
+attribution. The design originally planned to use KingBell's
 [Pixel Art Sprite Mixer](https://kingbell.itch.io/pixel-sprite-mixer)
-(CC-BY 4.0; the Mixer's code is MIT). Attribution is also in `plugin.json`,
-`DESCRIPTION.md` and the `/towarzysz` panel.
+(CC-BY 4.0) - no asset from it was ever acquired or used.

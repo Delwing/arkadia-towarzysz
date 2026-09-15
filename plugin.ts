@@ -21,8 +21,7 @@ import { load, pickStorage, reroll, save, type KeyValueStorage } from './compani
 import { VOICES, voiceName } from './voice/catalog';
 import { Speaker } from './voice/speak';
 import { Animator } from './render/animator';
-import { loadSheet, type LoadedSheet } from './render/sheet';
-import { SHEETS } from './render/sheets';
+import { buildSheet } from './render/sheet';
 import { Chip } from './ui/chip';
 import { Bubble } from './ui/bubble';
 import { buildSettingsPanel, type SettingsHandlers, type SettingsView } from './ui/settings';
@@ -35,7 +34,7 @@ const PLUGIN_VERSION = '1.0.0';
 const PLUGIN_AUTHOR = 'Dargoth';
 const PLUGIN_DESCRIPTION =
   'Pikselowy towarzysz w stopce - losowany raz na postac, reaguje na to, co dzieje sie w grze, czasem cos powie. ' +
-  'Sterowanie: /towarzysz. Grafika: Pixel Art Sprite Mixer (KingBell, CC-BY 4.0).';
+  "Sterowanie: /towarzysz. Grafika: wlasne pikselowe sprite'y.";
 
 const FOOTER_ID = 'towarzysz';
 const POPUP_ID = 'towarzysz-ustawienia';
@@ -95,7 +94,6 @@ class Towarzysz {
   private saveTimer: ReturnType<typeof setTimeout> | null = null;
   private labelTimer: ReturnType<typeof setInterval> | null = null;
   private sheetWarned = false;
-  private sheetToken = 0;
 
   constructor(api: PluginApi) {
     this.api = api;
@@ -208,20 +206,18 @@ class Towarzysz {
     this.chip.setSpec(state.spec);
     this.refreshMoodLabel();
 
-    const token = ++this.sheetToken;
-    this.chip.setSheet(null);
-    const sheet = SHEETS[state.spec.archetype];
-    if (!sheet) return;
-    loadSheet(sheet, state.spec.palette)
-      .then((loaded: LoadedSheet) => {
-        if (token === this.sheetToken) this.chip.setSheet(loaded);
-      })
-      .catch((error: unknown) => {
-        if (!this.sheetWarned) {
-          this.sheetWarned = true;
-          log('nie udalo sie wczytac arkusza sprite, rysuje postac zastepcza', error);
-        }
-      });
+    // Building the sheet is synchronous and cheap (a few thousand pixels), so
+    // there is no load to race and no token to guard: the chip either gets
+    // this companion's sheet or keeps drawing the procedural figure.
+    try {
+      this.chip.setSheet(buildSheet(state.spec));
+    } catch (error) {
+      this.chip.setSheet(null);
+      if (!this.sheetWarned) {
+        this.sheetWarned = true;
+        log('nie udalo sie zbudowac arkusza sprite, rysuje postac zastepcza', error);
+      }
+    }
   }
 
   // ------------------------------------------------------------------- events

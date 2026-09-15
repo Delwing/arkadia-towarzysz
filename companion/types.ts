@@ -51,6 +51,7 @@ export type Category =
   | 'death'
   | 'loot'
   | 'spend'
+  | 'sell'
   | 'gemGood'
   | 'gemBad'
   | 'idle';
@@ -63,6 +64,7 @@ export const CATEGORIES: readonly Category[] = [
   'death',
   'loot',
   'spend',
+  'sell',
   'gemGood',
   'gemBad',
   'idle',

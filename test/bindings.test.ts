@@ -10,6 +10,7 @@ import {
   type GameEvent,
 } from '../events/bindings';
 import { CATEGORIES, PRIMITIVES } from '../companion/types';
+import { COPPER_PER } from '../text/coins';
 
 const SAMPLES: Record<GameEvent['type'], GameEvent> = {
   kill: { type: 'kill', streak: 1 },
@@ -18,6 +19,7 @@ const SAMPLES: Record<GameEvent['type'], GameEvent> = {
   death: { type: 'death' },
   loot: { type: 'loot', copper: 240 },
   spend: { type: 'spend' },
+  sell: { type: 'sell' },
   gem: { type: 'gem', copper: GEM_GOOD_COPPER },
   idle: { type: 'idle' },
 };
@@ -82,11 +84,41 @@ describe('bindings', () => {
     expect(resolve({ type: 'gem', copper: GEM_BAD_COPPER - 1 })!.category).toBe('gemBad');
   });
 
+  it('a good stone starts at a mithryl, a bad one under a gold', () => {
+    expect(GEM_GOOD_COPPER).toBe(COPPER_PER.mithryl);
+    expect(GEM_BAD_COPPER).toBe(COPPER_PER.gold);
+    // Ten gold used to be "good"; it is ordinary now.
+    expect(resolve({ type: 'gem', copper: 10 * COPPER_PER.gold })).toBeNull();
+    expect(resolve({ type: 'gem', copper: COPPER_PER.mithryl })!.category).toBe('gemGood');
+    expect(resolve({ type: 'gem', copper: 2 * COPPER_PER.mithryl })!.category).toBe('gemGood');
+  });
+
   it('death topples, idle dozes, spend slumps', () => {
     expect(resolve({ type: 'death' })!.primitive).toBe('topple');
     expect(resolve({ type: 'death' })!.moodDelta).toBeLessThan(0);
     expect(resolve({ type: 'idle' })!.primitive).toBe('doze');
     expect(resolve({ type: 'spend' })!.primitive).toBe('slump');
     expect(resolve({ type: 'spend' })!.moodDelta).toBe(0);
+  });
+
+  it('a spend with a price sags harder than a small one', () => {
+    const unknown = resolve({ type: 'spend' })!;
+    const small = resolve({ type: 'spend', copper: 30 })!;
+    const large = resolve({ type: 'spend', copper: 50 * COPPER_PER.gold })!;
+    expect(large.intensity).toBeGreaterThan(small.intensity);
+    expect(unknown.intensity).toBe(1);
+    expect(large.category).toBe('spend');
+    // Spending is not a mood event, however much it costs.
+    expect(large.moodDelta).toBe(0);
+  });
+
+  it('a sale is a quieter gulp than the coins it brings in', () => {
+    const sell = resolve({ type: 'sell' })!;
+    const loot = resolve({ type: 'loot', copper: 10 * COPPER_PER.gold })!;
+    expect(sell.primitive).toBe('gulp');
+    expect(sell.category).toBe('sell');
+    expect(sell.intensity).toBeLessThan(loot.intensity);
+    expect(sell.moodDelta).toBeGreaterThan(0);
+    expect(sell.moodDelta).toBeLessThan(loot.moodDelta);
   });
 });

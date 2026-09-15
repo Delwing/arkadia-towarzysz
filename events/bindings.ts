@@ -8,6 +8,7 @@
  */
 
 import type { Category, Primitive } from '../companion/types';
+import { COPPER_PER } from '../text/coins';
 
 export const MAX_IMPROVE = 15;
 
@@ -17,13 +18,26 @@ export type GameEvent =
   | { type: 'hurt'; levelsLost: number }
   | { type: 'death' }
   | { type: 'loot'; copper: number }
-  | { type: 'spend' }
+  /** `copper` when the line said how much changed hands, otherwise unknown. */
+  | { type: 'spend'; copper?: number }
+  /** Goods sold. The payment, if the game prints it, arrives separately as `loot`. */
+  | { type: 'sell' }
   | { type: 'gem'; copper: number }
   | { type: 'idle' };
 
 export type GameEventType = GameEvent['type'];
 
-export const GAME_EVENT_TYPES: readonly GameEventType[] = ['kill', 'improve', 'hurt', 'death', 'loot', 'spend', 'gem', 'idle'];
+export const GAME_EVENT_TYPES: readonly GameEventType[] = [
+  'kill',
+  'improve',
+  'hurt',
+  'death',
+  'loot',
+  'spend',
+  'sell',
+  'gem',
+  'idle',
+];
 
 export interface Reaction {
   primitive: Primitive;
@@ -42,12 +56,17 @@ export const MOOD = {
   hurt: -0.05,
   death: -0.35,
   spend: 0,
+  sell: 0.05,
   idle: 0,
 } as const;
 
-/** Copper worth of a gem read-out that counts as "high" / "low". Between: no reaction. */
-export const GEM_GOOD_COPPER = 2_400;
-export const GEM_BAD_COPPER = 240;
+/**
+ * Copper worth of a gem read-out that counts as "high" / "low"; between the
+ * two, no reaction. A stone worth getting excited about starts at a mithryl -
+ * gold-priced stones are common enough to be noise.
+ */
+export const GEM_GOOD_COPPER = COPPER_PER.mithryl;
+export const GEM_BAD_COPPER = COPPER_PER.gold;
 /** Loot at or above this is a full-size haul (intensity and mood both max out). */
 export const LOOT_FULL_COPPER = 2_400;
 
@@ -102,8 +121,21 @@ export function resolve(event: GameEvent): Reaction | null {
         moodDelta: MOOD.loot * Math.max(0.1, share),
       };
     }
-    case 'spend':
-      return { primitive: 'slump', intensity: 1, category: 'spend', moodDelta: MOOD.spend };
+    case 'spend': {
+      const copper = event.copper;
+      return {
+        primitive: 'slump',
+        // A known price scales the sag the same way loot scales the gulp; an
+        // unknown one ("Kupujesz chleb.") is an ordinary slump.
+        intensity: copper && copper > 0 ? clampIntensity(0.5 + Math.log10(1 + copper) / 2) : 1,
+        category: 'spend',
+        moodDelta: MOOD.spend,
+      };
+    }
+    case 'sell':
+      // Quieter than loot: the coins themselves usually land on the next line
+      // and get their own, bigger reaction.
+      return { primitive: 'gulp', intensity: 0.8, category: 'sell', moodDelta: MOOD.sell };
     case 'gem': {
       if (event.copper >= GEM_GOOD_COPPER) {
         return { primitive: 'glitter', intensity: 2.2, category: 'gemGood', moodDelta: MOOD.gemGood };

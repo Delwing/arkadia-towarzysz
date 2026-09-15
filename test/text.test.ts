@@ -34,6 +34,22 @@ describe('coins', () => {
     expect(coinsToCopper('Bierzesz monety.')).toBe(0);
   });
 
+  it('values a list that names the coins once, at the end', () => {
+    // The shopkeeper taking payment: one "monet" for two metals.
+    expect(coinsToCopper('Usmiechniety dojrzaly mezczyzna drapieznym ruchem zgarnia 9 srebrnych i 30 miedzianych monet.')).toBe(
+      9 * 12 + 30,
+    );
+    expect(coinsToCopper('Bierzesz dwie zlote i trzy srebrne monety.')).toBe(2 * 240 + 3 * 12);
+    expect(coinsToCopper('Bierzesz zlote oraz srebrne monety.')).toBe(240 + 12);
+  });
+
+  it('ignores metal words that are not about money', () => {
+    // A metal adjective only counts when the phrase it opens ends in coins.
+    expect(coinsToCopper('Sprzedajesz dwie surowe czerwonozlote ryby.')).toBe(0);
+    expect(coinsToCopper('Bierzesz zlote ryby.')).toBe(0);
+    expect(coinsToCopper('Bierzesz zlote ryby i trzy srebrne monety.')).toBe(3 * 12);
+  });
+
   it('formats copper', () => {
     expect(formatCopper(0)).toBe('0 mied');
     expect(formatCopper(253)).toBe('1 zl 1 sr 1 mied');

@@ -31,6 +31,7 @@ export const CATEGORY_RULES: Record<Category, CategoryRule> = {
   death: { probability: 1, cooldownMs: 10_000 },
   loot: { probability: 0.3, cooldownMs: 90_000 },
   spend: { probability: 0.25, cooldownMs: 120_000 },
+  sell: { probability: 0.2, cooldownMs: 150_000 },
   gemGood: { probability: 0.7, cooldownMs: 60_000 },
   gemBad: { probability: 0.3, cooldownMs: 120_000 },
   idle: { probability: 0.5, cooldownMs: 600_000 },

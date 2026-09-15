@@ -29,7 +29,8 @@ export class Chip {
   private spec: CompanionSpec = placeholderSpec();
   private sheet: LoadedSheet | null = null;
   private frame: number | null = null;
-  private dpr = 1;
+  /** 0 until the first `resizeBacking`, which is what forces that first sizing. */
+  private dpr = 0;
   private readonly animator: Animator;
   private visible = true;
 
@@ -214,10 +215,18 @@ export class Chip {
 
   private resizeBacking(): void {
     const dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
-    if (dpr === this.dpr && this.canvas.width > 0) return;
+    const width = Math.round(CANVAS_W * PIXEL_SCALE * dpr);
+    const height = Math.round(CANVAS_H * PIXEL_SCALE * dpr);
+    // Compare against the backing store, not against `this.dpr`: on a 1x
+    // display those matched from the start and the canvas kept its default
+    // 300x150 backing, which CSS then squeezed into 39x30.
+    if (this.canvas.width === width && this.canvas.height === height) {
+      this.dpr = dpr;
+      return;
+    }
     this.dpr = dpr;
-    this.canvas.width = Math.round(CANVAS_W * PIXEL_SCALE * dpr);
-    this.canvas.height = Math.round(CANVAS_H * PIXEL_SCALE * dpr);
+    this.canvas.width = width;
+    this.canvas.height = height;
   }
 
   private tick = (now: number): void => {

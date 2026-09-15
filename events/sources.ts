@@ -18,8 +18,20 @@ export const CHAR_INFO_SETTLE_MS = 50;
 
 /** Coin-bearing lines. Anything without "monet" in it parses to 0 copper and is ignored. */
 export const LOOT_PATTERNS: RegExp[] = [/^Bierzesz (.+)\.$/, /^Dostajesz (.+)\.$/, /wyplaca ci (.+) monet/];
-/** Spending. The exact wording the game uses is an assumption; see docs/implementation-notes.md. */
-export const SPEND_PATTERNS: RegExp[] = [/^Kupujesz /, /^Placisz /];
+/**
+ * Spending. `zgarnia` is the shopkeeper's side of a purchase - "Usmiechniety
+ * dojrzaly mezczyzna drapieznym ruchem zgarnia 9 srebrnych i 30 miedzianych
+ * monet." - and it is the only one of these that says how much, so the line is
+ * parsed for coins the same way loot is.
+ */
+export const SPEND_PATTERNS: RegExp[] = [/^Kupujesz /, /^Placisz /, /zgarnia .* monet/];
+/** Selling goods. The payment, when the game prints one, arrives as its own loot line. */
+export const SELL_PATTERNS: RegExp[] = [/^Sprzedajesz /];
+/**
+ * Dying. The game prints "Umierasz." and then "Oddalasz sie."; the first is the
+ * moment, the second is the soul leaving, so only the first is the event.
+ */
+export const DEATH_PATTERNS: RegExp[] = [/^Umierasz\.$/];
 /** The gem valuation read-out, same pattern the client's own `/ocenkamienie` uses. */
 export const GEM_PATTERN =
   /^(?:Wydaje ci sie, ze (?:jest|sa) wart[aye]? okolo|(?:Wydaje ci sie, ze )?[Jj]est tu \d+ sztuk wartych|Sa tu \d+ sztuki warte) ([0-9]+) mied/;
@@ -69,6 +81,12 @@ export function attachSources(api: PluginApi, handlers: SourceHandlers, options:
   let lastHp: number | null = null;
   let charInfoFrames = 0;
   let lastCharInfoAt = -Infinity;
+  /**
+   * A death we already reacted to because the game said "Umierasz.". The
+   * `reset` that follows it on respawn is the same death - which may be many
+   * seconds later, so this is a flag and not a time window.
+   */
+  let deathReported = false;
   let characterName: string | null = null;
   let idleHandle: unknown = null;
 
@@ -130,6 +148,7 @@ export function attachSources(api: PluginApi, handlers: SourceHandlers, options:
     if (!name) return;
     if (name !== characterName) {
       characterName = name;
+      deathReported = false;
       resetBaselines();
       handlers.onCharacter(name);
     }
@@ -149,12 +168,18 @@ export function attachSources(api: PluginApi, handlers: SourceHandlers, options:
     const knownCharacter = charInfoFrames > 0 && characterName !== null && (currentName === null || currentName === characterName);
     const settled = t - lastCharInfoAt >= CHAR_INFO_SETTLE_MS || charInfoFrames > 1;
     resetBaselines();
+    // The text trigger is the authoritative one; this reset is its respawn.
+    if (deathReported) {
+      deathReported = false;
+      return;
+    }
     if (knownCharacter && settled) handlers.onEvent({ type: 'death' });
   }, onError);
 
   const onDisconnect = guard(() => {
     charInfoFrames = 0;
     lastCharInfoAt = -Infinity;
+    deathReported = false;
     resetBaselines();
     clearIdle();
     handlers.onDisconnect();
@@ -194,7 +219,33 @@ export function attachSources(api: PluginApi, handlers: SourceHandlers, options:
     api.triggers.register(
       pattern,
       (line, matches) => {
-        passThrough(() => handlers.onEvent({ type: 'spend' }))(line as unknown as { text?: string }, matches);
+        passThrough((text) => {
+          const copper = options.coinsToCopper(text);
+          handlers.onEvent(copper > 0 ? { type: 'spend', copper } : { type: 'spend' });
+        })(line as unknown as { text?: string }, matches);
+        return line;
+      },
+      TRIGGER_TAG,
+    );
+  }
+  for (const pattern of SELL_PATTERNS) {
+    api.triggers.register(
+      pattern,
+      (line, matches) => {
+        passThrough(() => handlers.onEvent({ type: 'sell' }))(line as unknown as { text?: string }, matches);
+        return line;
+      },
+      TRIGGER_TAG,
+    );
+  }
+  for (const pattern of DEATH_PATTERNS) {
+    api.triggers.register(
+      pattern,
+      (line, matches) => {
+        passThrough(() => {
+          deathReported = true;
+          handlers.onEvent({ type: 'death' });
+        })(line as unknown as { text?: string }, matches);
         return line;
       },
       TRIGGER_TAG,

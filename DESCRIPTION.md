@@ -15,8 +15,8 @@ zapomnienia, nigdy system, ktory czegos od ciebie chce.
   postac zawsze dostaje tego samego towarzysza, nawet po wyczyszczeniu
   przegladarki. Jedno losowanie od nowa, nigdy wiecej.
 - **Reaguje animacja na wszystko** - zabicia, postepy, obrazenia, smierc,
-  monety, wydatki, ocena kamieni, bezczynnosc. Zawsze cos zrobi, rzadko cos
-  powie.
+  monety, zakupy, sprzedaz, ocena kamieni, bezczynnosc. Zawsze cos zrobi,
+  rzadko cos powie.
 - **Powsciagliwosc jest funkcja** - przerwa miedzy kwestiami (domyslnie 45 s),
   osobne przerwy i prawdopodobienstwa na kategorie. Przez dwadziescia zabic
   milczy, przy dwudziestym pierwszym cos rzuci.
@@ -49,11 +49,12 @@ Klikniecie w towarzysza w stopce tez otwiera ustawienia.
 
 Stan lezy w localStorage przegladarki (`plugin:towarzysz:<imie postaci>`) -
 **nic nie jest nigdzie wysylane**, plugin nie wykonuje zadnych zapytan
-sieciowych, grafika jest wbudowana.
+sieciowych - nawet po grafike, bo ta rysuje sie sama w przegladarce.
 
 ## Grafika
 
-Sprite'y pochodza z [Pixel Art Sprite Mixer](https://kingbell.itch.io/pixel-sprite-mixer)
-autorstwa KingBell (CC-BY 4.0). Dziekujemy.
+Sprite'y sa wlasne i nie ma ich w postaci plikow: rysuje je kod, osobno dla
+kazdego towarzysza, w jego wylosowanych kolorach. Dlatego towarzysz bez broni
+naprawde jej nie ma, a nie ma ja zamalowana.
 
 Autor: Dargoth

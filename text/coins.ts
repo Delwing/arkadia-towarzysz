@@ -28,10 +28,33 @@ function metalOf(word: string): Metal | null {
   return null;
 }
 
+const COIN_NOUN = /^monet\w*$/i;
+/** Words that may sit between two metals of one coin phrase. */
+const CONNECTORS = new Set(['i', 'oraz', 'a']);
+
 /**
- * Total copper value of every "<amount> <metal> monet(a|y)" phrase in the text.
- * "monete" without an amount ("jedna zlota monete" or just "zlota monete")
- * counts as one. Returns 0 when there are no coins at all.
+ * Does the metal adjective at `i` belong to a coin phrase? The noun is often
+ * far away and written once for the whole list, as in "9 srebrnych i 30
+ * miedzianych monet", so walk forward over the things that can legitimately
+ * separate them - connectors, amounts, further metals - and require "monet..."
+ * at the end of that run. Anything else means this was not money at all
+ * ("zlote ryby"), which is the case this guards.
+ */
+function leadsToCoins(words: string[], i: number): boolean {
+  for (let j = i + 1; j < words.length; j++) {
+    const word = words[j] as string;
+    if (COIN_NOUN.test(word)) return true;
+    if (CONNECTORS.has(word.toLowerCase()) || isNumberWord(word) || metalOf(word)) continue;
+    return false;
+  }
+  return false;
+}
+
+/**
+ * Total copper value of every "<amount> <metal> monet(a|y)" phrase in the text,
+ * including lists that name the noun once ("9 srebrnych i 30 miedzianych
+ * monet"). A metal with no amount ("zlota monete") counts as one. Returns 0
+ * when there are no coins at all.
  */
 export function coinsToCopper(text: string): number {
   const words = text
@@ -40,13 +63,12 @@ export function coinsToCopper(text: string): number {
     .filter((w) => w.length > 0);
   let total = 0;
   for (let i = 0; i < words.length; i++) {
-    if (!/^monet\w*$/i.test(words[i] as string)) continue;
-    const metal = i > 0 ? metalOf(words[i - 1] as string) : null;
-    if (!metal) continue;
-    // Walk back over the number words before the metal adjective.
-    let start = i - 1;
+    const metal = metalOf(words[i] as string);
+    if (!metal || !leadsToCoins(words, i)) continue;
+    // Walk back over the number words in front of the metal adjective.
+    let start = i;
     while (start - 1 >= 0 && isNumberWord(words[start - 1] as string)) start--;
-    const amount = start < i - 1 ? parsePolishNumber(words.slice(start, i - 1).join(' ')) : null;
+    const amount = start < i ? parsePolishNumber(words.slice(start, i).join(' ')) : null;
     total += (amount ?? 1) * COPPER_PER[metal];
   }
   return total;
