@@ -73,29 +73,20 @@ export const CATEGORIES: readonly Category[] = [
 /** Mood buckets used for line selection. */
 export type MoodBucket = 'zle' | 'spokojnie' | 'dobrze';
 
-/** Animation primitives. `idle` is always running underneath. */
-export type Primitive =
-  | 'lunge'
-  | 'cheer'
-  | 'gulp'
-  | 'slump'
-  | 'glitter'
-  | 'flinch'
-  | 'topple'
-  | 'doze'
-  | 'idle';
+/**
+ * Animation primitives. `idle` is always running underneath.
+ *
+ * The names are not listed here: they come from the animation table in
+ * `render/animations.ts`, which is the one place an animation is described.
+ * This is a type-only re-export, so the data model still pulls in no runtime
+ * code of the renderer's.
+ */
+export type { Primitive } from '../render/animations';
 
-export const PRIMITIVES: readonly Primitive[] = [
-  'lunge',
-  'cheer',
-  'gulp',
-  'slump',
-  'glitter',
-  'flinch',
-  'topple',
-  'doze',
-  'idle',
-];
+/** How often the companion does something of their own accord. */
+export type AmbientLevel = 'off' | 'rare' | 'normal' | 'often';
+
+export const AMBIENT_LEVELS: readonly AmbientLevel[] = ['off', 'rare', 'normal', 'often'];
 
 export interface PersistedState {
   version: 1;
@@ -118,6 +109,8 @@ export interface PersistedState {
     voiceOverride: string | null;
     globalCooldownMs: number;
     idleMinutes: number;
+    /** How busy the companion is when left alone; see companion/ambient.ts. */
+    ambientLevel: AmbientLevel;
   };
 }
 

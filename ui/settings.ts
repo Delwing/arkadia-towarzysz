@@ -6,7 +6,7 @@
  * Plain DOM, no framework: the registry compiles plugins with no dependencies.
  */
 
-import { CATEGORIES, type Archetype, type Category, type PersistedState } from '../companion/types';
+import { AMBIENT_LEVELS, CATEGORIES, type AmbientLevel, type Archetype, type Category, type PersistedState } from '../companion/types';
 import { bucketLabel } from '../companion/mood';
 import { MAX_REROLLS } from '../companion/state';
 import { VOICE_IDS, voiceName } from '../voice/catalog';
@@ -16,6 +16,12 @@ import { COPPER_PER } from '../text/coins';
 
 /** The plugin's own page; the sprite art is this repository's, so there is nobody else to credit. */
 export const ATTRIBUTION_URL = 'https://github.com/Delwing/arkadia-towarzysz';
+/**
+ * The art is ours, but the list of animations worth having - a walk, a flash,
+ * a warp, a sit, a soul leaving the body - and the art itself both come from
+ * KingBell's tool (CC-BY 4.0). The link-back is the credit it asks for.
+ */
+export const MIXER_URL = 'https://kingbell.itch.io/pixel-sprite-mixer';
 
 export const CATEGORY_LABELS: Record<Category, string> = {
   kill: 'Zabicia',
@@ -29,6 +35,13 @@ export const CATEGORY_LABELS: Record<Category, string> = {
   gemGood: 'Cenne kamienie',
   gemBad: 'Kiepskie kamienie',
   idle: 'Bezczynnosc',
+};
+
+export const AMBIENT_LABELS: Record<AmbientLevel, string> = {
+  off: 'wylaczony',
+  rare: 'rzadko',
+  normal: 'normalnie',
+  often: 'czesto',
 };
 
 export const ARCHETYPE_LABELS: Record<Archetype, string> = {
@@ -54,7 +67,10 @@ export interface SettingsHandlers {
   onVoiceOverride(voiceId: string | null): void;
   onCooldownSeconds(seconds: number): void;
   onIdleMinutes(minutes: number): void;
+  onAmbientLevel(level: AmbientLevel): void;
   onSaySomething(): void;
+  /** The preview button: one ambient action now. */
+  onAmbient(): void;
   /** Called only after the confirmation. */
   onReroll(): void;
 }
@@ -194,9 +210,30 @@ export function buildSettingsPanel(view: SettingsView, handlers: SettingsHandler
   );
   root.appendChild(timing);
 
+  const life = section('Ruch wlasny');
+  const ambient = el('select', undefined, { fontSize: '12px' });
+  for (const level of AMBIENT_LEVELS) {
+    const option = el('option', AMBIENT_LABELS[level]);
+    option.value = level;
+    ambient.appendChild(option);
+  }
+  ambient.value = state.settings.ambientLevel;
+  ambient.addEventListener('change', () => handlers.onAmbientLevel(ambient.value as AmbientLevel));
+  life.appendChild(ambient);
+  life.appendChild(
+    el(
+      'div',
+      'Co jakis czas, gdy nic sie nie dzieje, towarzysz przejdzie sie po stopce, zamigocze albo zniknie i wroci. ' +
+        'Nigdy nie przerywa reakcji i nigdy przy tym nic nie mowi.',
+      { opacity: '0.7', fontSize: '11px', marginTop: '4px' },
+    ),
+  );
+  root.appendChild(life);
+
   const actions = section('Akcje');
   const row = el('div', undefined, { display: 'flex', gap: '6px', flexWrap: 'wrap' });
   row.appendChild(button('Powiedz cos', handlers.onSaySomething));
+  row.appendChild(button('Przejdz sie', handlers.onAmbient));
   const rerollsLeft = MAX_REROLLS - state.rerollsUsed;
   const rerollBtn = button(
     rerollsLeft > 0 ? 'Losuj od nowa (jedyny raz)' : 'Losowanie od nowa juz wykorzystane',
@@ -224,6 +261,12 @@ function attribution(): HTMLDivElement {
   link.target = '_blank';
   link.rel = 'noopener noreferrer';
   box.appendChild(link);
+  box.appendChild(document.createTextNode('. Zestaw animacji wzorowany na '));
+  const mixer = el('a', "KingBell's Pixel Art Sprite Mixer");
+  mixer.href = MIXER_URL;
+  mixer.target = '_blank';
+  mixer.rel = 'noopener noreferrer';
+  box.appendChild(mixer);
   box.appendChild(document.createTextNode('. Komendy: /towarzysz, /towarzysz cisza.'));
   return box;
 }

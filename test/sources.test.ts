@@ -54,6 +54,8 @@ class FakeClient {
 interface Harness {
   client: FakeClient;
   events: GameEvent[];
+  /** How many times the client said the character's object number changed. */
+  respawns: number;
   sources: Sources;
   advance(ms: number): void;
 }
@@ -62,12 +64,16 @@ function harness(characterName: string | null = 'Delwing'): Harness {
   const client = new FakeClient();
   if (characterName) client.gmcpData = { char: { info: { name: characterName } } };
   const events: GameEvent[] = [];
+  const counted = { respawns: 0 };
   let clock = 1_000_000;
   const sources = attachSources(
     client.api,
     {
       onEvent: (event) => events.push(event),
       onActivity: () => undefined,
+      onRespawn: () => {
+        counted.respawns++;
+      },
       onCharacter: () => undefined,
       onDisconnect: () => undefined,
     },
@@ -86,11 +92,30 @@ function harness(characterName: string | null = 'Delwing'): Harness {
     client,
     events,
     sources,
+    get respawns() {
+      return counted.respawns;
+    },
     advance(ms: number) {
       clock += ms;
     },
   };
 }
+
+describe('respawn', () => {
+  it('reports every reset, because each one is a new object number', () => {
+    const h = harness();
+    expect(h.respawns).toBe(0);
+    h.client.emit('reset', undefined);
+    expect(h.respawns).toBe(1);
+    // Including the one that follows a death we already reported: that reset is
+    // the respawn, and it is what puts the companion back on their feet.
+    h.client.line('Umierasz.');
+    h.advance(3000);
+    h.client.emit('reset', undefined);
+    expect(h.respawns).toBe(2);
+    expect(h.events.filter((e) => e.type === 'death')).toHaveLength(1);
+  });
+});
 
 describe('death', () => {
   it('fires on "Umierasz.", the line the game actually prints', () => {

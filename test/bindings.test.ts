@@ -11,7 +11,8 @@ import {
   resolve,
   type GameEvent,
 } from '../events/bindings';
-import { CATEGORIES, PRIMITIVES } from '../companion/types';
+import { CATEGORIES } from '../companion/types';
+import { PRIMITIVES } from '../render/animations';
 import { COPPER_PER } from '../text/coins';
 
 const SAMPLES: Record<GameEvent['type'], GameEvent> = {

@@ -50,6 +50,185 @@ about the client or the registry and had to bend. Each one is easy to revisit.
    a HiDPI screen. It now compares against the backing store itself. The
    fallback figure had the same bug; it only became obvious with a sheet.
 
+4c. **Idle life was not in the spec.** The spec gave the companion reactions
+    and a doze and nothing in between, which leaves a figure that breathes and
+    blinks for minutes at a time - readable as a static image. `walk`,
+    `flicker` and `warp` were added as three more primitives, and
+    `companion/ambient.ts` decides when one plays. Four decisions inside that:
+    - **The animator polls the scheduler, rather than a timer driving it.**
+      The frame clock is the only clock, so the busy check is free
+      (`this.active` is the whole condition), a chip that is not rendering is a
+      companion standing still, and there is no timer to tear down. The cost is
+      that the scheduler only advances while something is drawing, which is
+      what we want anyway.
+    - **They are priority 0**, below every reaction, so a kill cuts through a
+      walk and the doze is never interrupted from the inside.
+    - **The direction is the sign of the intensity.** `walk` and `warp` need a
+      side to go to, and everything already carries an intensity; adding a
+      field to `play()` for two primitives was worse than documenting that
+      these two read its sign. `heading()` in `render/animator.ts` is the
+      only place that looks at it.
+    - **They never speak.** Speech is a reaction to the player; a line attached
+      to the companion's own fidgeting would read as nagging, and the
+      restraint machinery exists precisely to avoid that.
+    The frequency is `settings.ambientLevel` (`wylaczony`/`rzadko`/
+    `normalnie`/`czesto`), still `version: 1` - a missing field normalises to
+    `normalnie` like the rest of `settings`.
+4d. **A front view has no stride.** The walk cycle is four frames but only
+    three leg positions: both feet down and apart, and two passes with the
+    other foot up each time. The two contacts are told apart by the arm swing,
+    because from the front that is all there is. The animator supplies the
+    bounce and mirrors the whole figure with a negative `sx` for the
+    direction, so the sheet carries one walk, not two.
+4e. **`tools/showcase/` was added** because the canvas layer was the one part
+    with no way to look at it short of loading the client. It imports the
+    plugin's own modules and wires them like `plugin.ts`, so it is a preview
+    and not a second implementation; `Chip.render` being public (it was
+    already, for a test harness) is what lets it scrub frame by frame.
+
+4e2. **Sheet frames need a gutter.** The chip scales a 16 px frame by 1.5 CSS
+    pixels, and at a fractional scale the browser samples a hair outside the
+    source rectangle even with `imageSmoothingEnabled = false`. With the frames
+    packed edge to edge that pulled the feet of the frame above into the empty
+    top rows of the frame below - invisible until `rest`, the first animation
+    whose frame has empty top rows, showed two grey dashes floating over the
+    companion's head. `FRAME_PAD` (1 px) now separates every cell, `frameRect`
+    steps by the cell and returns the frame inside it, and `LoadedSheet` carries
+    both sizes. The frames themselves are unchanged, pixel for pixel.
+4f. **An animation is one entry in one file.** It used to be four: the name in
+    the `Primitive` union, a row and a frame count in `ANIMATIONS`, the frames
+    in `POSES`, the motion in `PRIMITIVE_DEFS`, and a weight in the ambient
+    table - with a test whose job was to catch the frame count drifting between
+    two of them. `render/animations.ts` now holds all of it per animation and
+    everything else is derived: `Primitive` is `keyof typeof SPECS`, the sheet
+    row is the declaration order, the frame count is `frames.length`, and the
+    idle-life draw is built from the entries that carry an `ambient` weight.
+    `render/pose.ts` was split out to hold the vocabulary both halves share, so
+    there is no cycle: pose <- animations <- animator / sprites.
+    The animator seeds `base.frame` with the animation's own frame for `t`
+    before calling its `pose`, so only an animation with its own frame timing
+    (the walk cycle, the warp's phases) mentions frames at all. The refactor was
+    checked by snapshotting every sheet pixel for eight companions and 63 pose
+    samples per animation before and after: identical apart from `idle`'s frame
+    index, which nothing reads (the animator draws the idle bob itself).
+4g. **The art is KingBell's Pixel Art Sprite Mixer**, the tool the spec
+    originally wanted to take art from and eventually did. Sprites CC-BY 4.0,
+    the tool's own code MIT; see 4j2 for how that was established, and 4i for
+    what is taken from each.
+
+4h. **The Mixer art is pulled by manifest, not vendored wholesale.** The tool's
+    assets are public and CC-BY, and its ~1,255 files could all be fetched;
+    `tools/mixer/manifest.json` names the handful we actually map to instead,
+    and `yarn mixer add-anim` / `add-archetype` grows it. Three reasons beyond
+    taste: the bundle only carries what is used, the manifest doubles as the
+    map from their animation names to ours, and the download cache stays
+    git-ignored so the repository keeps its no-binaries rule.
+    The bake packs frames as run-length base64 over a shared palette rather
+    than shipping PNGs, because the registry compiles `.ts`, `.js` and `.json`
+    only - the same constraint that killed `tools/embed-sheets.mjs` (note 2),
+    handled with text this time instead of a data URI.
+4i. **The pipeline reads the tool's own tables instead of measuring pixels.**
+    The first version scraped the preview GIFs and inferred everything else, and
+    every inference was wrong in a way that took a bug report to find: a hat
+    anchored to the top of the figure followed a raised sword, anchored to the
+    top of the skin it drifted against a breathing sleeper, and the item files
+    turned out to be whole characters, so subtracting them left a band of
+    trousers that rode up to the companion's eyes. Template matching the head
+    silhouette was tried too; the slash and the soul bias it.
+    None of that was necessary. The tool ships `data/Import_config_Hero.zip`,
+    which carries `base.png` (703 cells), `heads.png` (333 heads) and a
+    `conf.json` holding the cell size, the key colours the art is drawn in, and
+    `parts.head[anim][frame]` - how far the head layer moves, per frame, for 120
+    animations. The frame layout is a lookup in their `app.js`
+    (`getAnimX0`), read back out as a table. Where a hat goes on a ducking
+    companion is a number the artist wrote down, and now we read it.
+    Deleted with the guesswork: the GIF decoder and `omggif`, the face and eye
+    anchors, the item diffing, the neck crop, the near-colour merge, and the
+    per-frame offset estimation. `tools/mixer/decode.mjs` is down to packing.
+4i2. **Effects go in front of the hat.** Their compositor draws base, then
+    head, then face, and we copied that - which put the soul rising out of a
+    dead companion *behind* their hat brim. `more` is the tool's spare slot and
+    in our frames it is exactly the three things that belong in front: the sword
+    of a swing, the soul, and the skull. So the head layer skips any pixel that
+    is already an effect. They hide the head instead where a frame has no use
+    for it (an offset of 32, past the bottom of the cell - `die_skull`,
+    `re_warp` and `dash_flash_step_one` all do that), but `die_soul` keeps the
+    head at 7 throughout, so the ordering is ours to fix.
+    `more` also keeps a fixed pale tone rather than following the roll: a soul
+    rising off a brown companion would be a brown bubble on a brown body.
+4i3. **A held death settles.** `die_soul`'s last frame still carries two pixels
+    of soul, on its way out of shot, and a companion who stays dead until the
+    respawn stayed dead with those two pixels hanging over them. The bake counts
+    the effect pixels left in a clip's final frame and marks it a *remnant* when
+    there are only a few; the animator then settles a held animation onto the
+    plain body instead. The threshold matters: `die_skull` ends on fifty-odd
+    effect pixels because the skull *is* the ending, and that one is left alone.
+4j2. **The licence was checked properly the second time.** This was first
+    refused on the grounds that the author had told a commenter "not the code".
+    itch.io's own metadata panel says **Code license: MIT**, **Asset license:
+    CC-BY 4.0**; the comment was him declining to hand out layer files for
+    rebuilding his generator, not a retraction. The MIT notice travels into the
+    generated module, and the CC-BY link-back is in `README.md`,
+    `DESCRIPTION.md` and the panel.
+4k2. **Cells are 16x24, drawn one sprite pixel to one chip pixel.** The preview
+    GIFs are 32x48 because they are displayed at 2x; the art itself is half
+    that, which is why the chip needs no scaling at all now - nothing to blur,
+    no half-pixels to line up - and why the bake halved in size (45 kB to 22 kB)
+    while gaining fidelity.
+4l2. **The base body is bare-headed on purpose.** Hair and hats are both
+    `heads.png` layers in the tool, so a clip drawn without one - every weapon
+    animation - shows a bald companion. That is what "the villager loses his
+    hat in the lunge" was: not our compositing, their art doing what it should.
+    Every archetype now wears a head, which is also what makes the seven read
+    apart: straw hat, pointed hat, buckled wizard hat, beast head, horns,
+    horned helm, pointed ears.
+
+4o0. **Timing comes from the art too.** Our durations were written for a
+    four-frame sheet, so against theirs everything crawled: the warp ran at
+    2.1x its drawn speed, the death at 3.5x, the sit at 9.4x. An animation now
+    leaves `durationMs` out and gets `delayMs x frames` from the bake - the
+    pace the artist chose. The three that mean to outlast their clip say so:
+    `walk` strolls for 3.4 s and `rest` sits for 9 s with the clip looping
+    underneath at its own speed (`looped()`), and `warp` takes 1.8 passes
+    because it plays out, waits, and comes back in.
+4o0b. **And the duration must still be the animation's own.** Taking it from
+    the clip was right for an animation that plays once and wrong for every
+    other: a walk that should stroll for 3.4 s finished in the 520 ms of one
+    jog, and a nine-second sit in 960 ms. Only an entry with no `durationMs` of
+    its own follows the row it drew (`fromSource`), which is also what lets the
+    four deaths each run to their own length.
+4o1. **The warp is their arrival clip, backwards then forwards.** Their
+    `re_warp` opens on four empty frames, materialises the companion high and
+    small, and settles into a stand - it is an arriving, not a leaving. So the
+    way out is the same frames in reverse, the empty end of them is the beat
+    where the companion is gone, and the way back in is the clip played
+    forwards. It no longer travels sideways either: the trick is the
+    disappearing, and walking about is what `walk` is for.
+4o2. **The idle only ever showed half its frames.** The idle bob alternated
+    "frame 0 or 1 of 2", which is phase 0 and phase 0.5, and on their
+    four-frame idle that is frames 0 and 2 - 1 and 3 were never drawn. It
+    sweeps the whole clip now. The hand-rolled breathing bob and blink went
+    with it: their idle does both, and ours was a second, slower bob on top.
+    `rest` and `flicker` had the same bug for the same reason - both were
+    written as "frame 0 or 1 of two" - and a test now sweeps every animation and
+    fails unless every frame of its clip is reached.
+
+4p. **A death is one of four, and it lasts until the respawn.** `topple` names
+    a list in the manifest - `die_soul`, `die_skull`, `die_melt`, `die_shrink` -
+    which the bake lays down as `topple`, `topple#1`, `topple#2`, `topple#3`,
+    and the animator picks a row each time it plays. All four were chosen for
+    how they *end*, because the companion stays in that last frame:
+    `die_poof` and `die_smoke` finish with the body gone, which would leave an
+    empty footer.
+    `base_die`, their four-frame collapse, plays first for a quarter of the
+    animation, so the fall and the leaving are two beats, the way the game
+    prints "Umierasz." and then "Oddalasz sie.".
+    The holding is `PrimitiveDef.holds`: it plays once, stops on its last frame,
+    and only `revive()` ends it. That comes from `reset`, which the client fires
+    when the character's object number changes - a respawn. Nothing about it is
+    persisted, so a relog finds the companion on their feet, and `wake()` (a
+    typed command) deliberately does not lift it: only coming back to life does.
+
 ## Data model
 
 5. **`PersistedState.settings` was added** (`voiceOverride`, `globalCooldownMs`,
@@ -148,7 +327,7 @@ about the client or the registry and had to bend. Each one is easy to revisit.
 19. The chip registers an **empty** footer component and appends its own
     element into the handle's span, because the client clones any Node passed
     to `registerFooterComponent` and the plugin would lose its canvas.
-20. Chip size: a 26x20 sprite-pixel canvas at 1.5 CSS px per pixel (39x30 px).
+20. Chip size: a 26x28 sprite-pixel canvas at 1.5 CSS px per pixel (39x42 px).
     That is a few pixels taller than the client's other footer chips; the
     constant is `PIXEL_SCALE` in `ui/chip.ts`.
 21. Mood labels on the chip: `markotnie` / `spokojnie` / `radosnie` -

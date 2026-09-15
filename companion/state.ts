@@ -7,7 +7,7 @@
  * the deterministic seed, so the companion comes back identical.
  */
 
-import { CATEGORIES, STATE_VERSION, type Category, type PersistedState } from './types';
+import { AMBIENT_LEVELS, CATEGORIES, STATE_VERSION, type AmbientLevel, type Category, type PersistedState } from './types';
 import { isValidSpec, roll } from './roll';
 import { VOICE_IDS } from '../voice/catalog';
 
@@ -16,6 +16,7 @@ export const MAX_REROLLS = 1;
 
 export const DEFAULT_GLOBAL_COOLDOWN_MS = 45_000;
 export const DEFAULT_IDLE_MINUTES = 5;
+export const DEFAULT_AMBIENT_LEVEL: AmbientLevel = 'normal';
 
 /** The subset of the Storage interface that is actually used. */
 export interface KeyValueStorage {
@@ -69,6 +70,7 @@ export function freshState(characterName: string, rerollsUsed = 0, now = Date.no
       voiceOverride: null,
       globalCooldownMs: DEFAULT_GLOBAL_COOLDOWN_MS,
       idleMinutes: DEFAULT_IDLE_MINUTES,
+      ambientLevel: DEFAULT_AMBIENT_LEVEL,
     },
   };
 }
@@ -107,6 +109,9 @@ export function normalizeState(raw: unknown, characterName: string, now = Date.n
     typeof settingsRaw.voiceOverride === 'string' && VOICE_IDS.includes(settingsRaw.voiceOverride)
       ? settingsRaw.voiceOverride
       : null;
+  const ambientLevel = AMBIENT_LEVELS.includes(settingsRaw.ambientLevel as AmbientLevel)
+    ? (settingsRaw.ambientLevel as AmbientLevel)
+    : DEFAULT_AMBIENT_LEVEL;
 
   return {
     version: STATE_VERSION,
@@ -124,6 +129,7 @@ export function normalizeState(raw: unknown, characterName: string, now = Date.n
       voiceOverride,
       globalCooldownMs: Math.min(600_000, Math.max(5_000, finite(settingsRaw.globalCooldownMs, DEFAULT_GLOBAL_COOLDOWN_MS))),
       idleMinutes: Math.min(120, Math.max(1, finite(settingsRaw.idleMinutes, DEFAULT_IDLE_MINUTES))),
+      ambientLevel,
     },
   };
 }

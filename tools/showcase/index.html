@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="pl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Towarzysz - podglad</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #22252b;
+        --panel: #2b2e34;
+        --line: #3c4149;
+        --ink: #d7d3c8;
+        --dim: #9aa0a8;
+        --accent: #c9a227;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        padding: 16px;
+        background: var(--bg);
+        color: var(--ink);
+        font: 13px/1.45 -apple-system, "Segoe UI", system-ui, sans-serif;
+      }
+      h1 { font-size: 16px; margin: 0 0 2px; }
+      h2 { font-size: 12px; margin: 0 0 8px; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); }
+      p.lead { margin: 0 0 16px; color: var(--dim); }
+      .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; align-items: start; }
+      .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
+      .panel.wide { grid-column: 1 / -1; }
+      button {
+        font: inherit;
+        font-size: 12px;
+        color: var(--ink);
+        background: #363b43;
+        border: 1px solid var(--line);
+        border-radius: 5px;
+        padding: 3px 9px;
+        cursor: pointer;
+      }
+      button:hover { border-color: var(--accent); }
+      button.on { background: var(--accent); color: #221d08; border-color: var(--accent); }
+      input, select { font: inherit; font-size: 12px; color: var(--ink); background: #1e2128; border: 1px solid var(--line); border-radius: 5px; padding: 2px 5px; }
+      input[type="range"] { padding: 0; }
+      label { display: inline-flex; align-items: center; gap: 5px; }
+      .row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+      .row + .row { margin-top: 8px; }
+      .stage { display: flex; gap: 20px; align-items: flex-end; flex-wrap: wrap; background: #1b1d22; border-radius: 6px; padding: 10px 10px 22px; }
+      .cell { position: relative; }
+      .zoom { transform-origin: top left; }
+      .zoom canvas { image-rendering: pixelated; }
+      .cell .caption { position: absolute; right: 2px; bottom: -14px; margin: 0; }
+      .caption { color: var(--dim); font-size: 11px; margin-top: 6px; }
+      table { border-collapse: collapse; width: 100%; font: 11px/1.5 ui-monospace, "Cascadia Mono", Consolas, monospace; }
+      td { padding: 1px 6px 1px 0; }
+      td.k { color: var(--dim); width: 7em; }
+      #log { height: 190px; overflow: auto; margin: 0; font: 11px/1.5 ui-monospace, "Cascadia Mono", Consolas, monospace; white-space: pre-wrap; }
+      #log b { color: var(--accent); font-weight: 600; }
+      #log i { color: #8fbf8f; font-style: normal; }
+      #sheet { image-rendering: pixelated; max-width: 100%; }
+      .swatch { display: inline-block; width: 12px; height: 12px; border: 1px solid #0006; border-radius: 2px; vertical-align: -2px; }
+    </style>
+  </head>
+  <body>
+    <h1>Towarzysz - podglad</h1>
+    <p class="lead">
+      Prawdziwy chip, prawdziwy animator i prawdziwy tor zdarzen (sources -&gt; bindings -&gt; mood -&gt; animator -&gt; speak).
+      Nic tu nie jest atrapa poza samym klientem.
+    </p>
+    <div id="app" class="grid"></div>
+    <script type="module" src="./showcase.js"></script>
+  </body>
+</html>

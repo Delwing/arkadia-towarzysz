@@ -1,0 +1,51 @@
+{
+  "source": "https://html-classic.itch.zone/html/18212366",
+  "bundle": "data/Import_config_Hero.zip",
+  "credit": "https://kingbell.itch.io/pixel-sprite-mixer",
+  "licence": "Art CC-BY 4.0, tool code MIT (both as declared on the itch.io page). The attribution asked for is a link back to the tool; it is in README.md, DESCRIPTION.md and the settings panel.",
+  "frameMs": 120,
+  "animations": {
+    "idle": "base_idle",
+    "walk": "run_two",
+    "lunge": "weapon_sword_atk_melee",
+    "cheer": "jump_hop",
+    "gulp": "duck",
+    "slump": "hurt_tear",
+    "glitter": "life_heal",
+    "flinch": "hurt_one",
+    "die": "base_die",
+    "topple": [
+      "die_soul",
+      "die_skull",
+      "die_melt",
+      "die_shrink"
+    ],
+    "doze": "life_sleep",
+    "warp": "re_warp",
+    "flicker": "dash_flash_step_one",
+    "rest": "life_rest"
+  },
+  "archetypes": {
+    "villager": {
+      "head": 48
+    },
+    "magician": {
+      "head": 53
+    },
+    "wizard": {
+      "head": 37
+    },
+    "monster": {
+      "head": 85
+    },
+    "ogre": {
+      "head": 97
+    },
+    "orc": {
+      "head": 192
+    },
+    "goblin": {
+      "head": 120
+    }
+  }
+}

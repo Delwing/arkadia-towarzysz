@@ -1,7 +1,7 @@
 /**
  * A minimal RGBA PNG encoder, so the preview tool needs no dependencies.
  *
- * Only what `tools/preview-sprites.mjs` needs: 8-bit RGBA, no interlacing and
+ * Only what `yarn mixer preview` needs: 8-bit RGBA, no interlacing and
  * filter type 0 on every row. Nothing in the plugin itself touches a PNG - the
  * sprite art is drawn straight onto a canvas at runtime.
  */

@@ -15,7 +15,7 @@
 
 import type { PluginApi, PluginInfo } from '@arkadia/plugin-types';
 
-import type { Category, PersistedState } from './companion/types';
+import type { AmbientLevel, Category, PersistedState } from './companion/types';
 import { bucket, bucketLabel, nudge, read as readMood } from './companion/mood';
 import { load, pickStorage, reroll, save, type KeyValueStorage } from './companion/state';
 import { VOICES, voiceName } from './voice/catalog';
@@ -24,7 +24,7 @@ import { Animator } from './render/animator';
 import { buildSheet } from './render/sheet';
 import { Chip } from './ui/chip';
 import { Bubble } from './ui/bubble';
-import { buildSettingsPanel, type SettingsHandlers, type SettingsView } from './ui/settings';
+import { AMBIENT_LABELS, buildSettingsPanel, type SettingsHandlers, type SettingsView } from './ui/settings';
 import { resolve, type GameEvent } from './events/bindings';
 import { attachSources, type Sources } from './events/sources';
 import { coinsToCopper } from './text/coins';
@@ -118,6 +118,7 @@ class Towarzysz {
       {
         onEvent: (event) => this.handle(event),
         onActivity: () => this.animator.wake(),
+        onRespawn: () => this.animator.revive(),
         onCharacter: (name) => this.loadCharacter(name),
         onDisconnect: () => this.flushSave(),
       },
@@ -188,6 +189,7 @@ class Towarzysz {
     this.state = state;
     this.speaker.reset();
     this.speaker.setGlobalCooldown(state.settings.globalCooldownMs);
+    this.animator.setAmbientLevel(state.settings.ambientLevel);
     this.animator.wake();
     this.applySpec();
     this.scheduleSave();
@@ -215,7 +217,7 @@ class Towarzysz {
       this.chip.setSheet(null);
       if (!this.sheetWarned) {
         this.sheetWarned = true;
-        log('nie udalo sie zbudowac arkusza sprite, rysuje postac zastepcza', error);
+        log('nie udalo sie zbudowac arkusza sprite - towarzysz zostanie niewidoczny', error);
       }
     }
   }
@@ -311,6 +313,7 @@ class Towarzysz {
       print(
         `${state.spec.name} (${state.spec.archetype}), glos: ${voiceName(state.settings.voiceOverride ?? state.spec.voiceId)}, ` +
           `nastroj: ${bucketLabel(this.currentMood())}, ${state.mutes.global ? 'cisza' : 'mowi'}` +
+          `, ruch wlasny: ${AMBIENT_LABELS[state.settings.ambientLevel]}` +
           (state.mutes.categories.length ? `, wyciszone: ${state.mutes.categories.join(', ')}` : '') +
           `. Zabicia ${state.stats.kills}, smierci ${state.stats.deaths}, sesje ${state.stats.sessions}.`,
       );
@@ -320,7 +323,15 @@ class Towarzysz {
       this.saySomething();
       return;
     }
-    print('/towarzysz [cisza|status|powiedz]');
+    if (args === 'ruch') {
+      if (!this.state) {
+        print('czekam na imie postaci.');
+        return;
+      }
+      this.animator.playAmbient(animationNow());
+      return;
+    }
+    print('/towarzysz [cisza|status|powiedz|ruch]');
   }
 
   private saySomething(): void {
@@ -370,7 +381,13 @@ class Towarzysz {
           s.settings.idleMinutes = minutes;
           this.sources?.restartIdleTimer();
         }),
+      onAmbientLevel: (level: AmbientLevel) =>
+        withState((s) => {
+          s.settings.ambientLevel = level;
+          this.animator.setAmbientLevel(level);
+        }),
       onSaySomething: () => this.saySomething(),
+      onAmbient: () => this.animator.playAmbient(animationNow()),
       onReroll: () => {
         const name = this.characterName;
         const state = this.state;

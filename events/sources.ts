@@ -40,6 +40,11 @@ export interface SourceHandlers {
   onEvent(event: GameEvent): void;
   /** Any command typed: wakes a dozing companion and restarts the idle clock. */
   onActivity(): void;
+  /**
+   * The character's object number changed - a respawn, a login, a character
+   * switch. A companion who died is lying there until this arrives.
+   */
+  onRespawn(): void;
   onCharacter(name: string): void;
   onDisconnect(): void;
 }
@@ -164,6 +169,9 @@ export function attachSources(api: PluginApi, handlers: SourceHandlers, options:
    */
   const onReset = guard(() => {
     const t = now();
+    // Whatever else this reset means, the object number is new: a companion
+    // left lying by a death gets up now.
+    handlers.onRespawn();
     const currentName = readGmcpName(api);
     const knownCharacter = charInfoFrames > 0 && characterName !== null && (currentName === null || currentName === characterName);
     const settled = t - lastCharInfoAt >= CHAR_INFO_SETTLE_MS || charInfoFrames > 1;

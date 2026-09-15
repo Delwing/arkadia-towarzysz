@@ -17,6 +17,10 @@ zapomnienia, nigdy system, ktory czegos od ciebie chce.
 - **Reaguje animacja na wszystko** - zabicia, postepy, obrazenia, smierc,
   monety, zakupy, sprzedaz, ocena kamieni, bezczynnosc. Zawsze cos zrobi,
   rzadko cos powie.
+- **Zyje wlasnym zyciem** - gdy nic sie nie dzieje, co pol minuty przejdzie
+  sie po stopce, zamigocze albo zniknie w slupie swiatla i wroci kawalek
+  dalej. Nigdy przy tym nic nie mowi i nigdy nie przerywa reakcji; czestotliwosc
+  (albo cisze) ustawiasz w `/towarzysz`.
 - **Powsciagliwosc jest funkcja** - przerwa miedzy kwestiami (domyslnie 45 s),
   osobne przerwy i prawdopodobienstwa na kategorie. Przez dwadziescia zabic
   milczy, przy dwudziestym pierwszym cos rzuci. Ale na smierc, niebotyczne
@@ -35,10 +39,11 @@ zapomnienia, nigdy system, ktory czegos od ciebie chce.
 
 | Komenda | Dziala |
 | --- | --- |
-| `/towarzysz` | ustawienia: cisza calkowita i na kategorie, glos, przerwy, losowanie od nowa |
+| `/towarzysz` | ustawienia: cisza calkowita i na kategorie, glos, przerwy, ruch wlasny, losowanie od nowa |
 | `/towarzysz cisza` | szybkie wyciszenie / odciszenie |
 | `/towarzysz status` | kim jest, jaki ma nastroj, statystyki |
 | `/towarzysz powiedz` | niech cos powie (test dymka) |
+| `/towarzysz ruch` | niech sie przejdzie (test ruchu wlasnego) |
 
 Klikniecie w towarzysza w stopce tez otwiera ustawienia.
 
@@ -56,8 +61,11 @@ sieciowych - nawet po grafike, bo ta rysuje sie sama w przegladarce.
 
 ## Grafika
 
-Sprite'y sa wlasne i nie ma ich w postaci plikow: rysuje je kod, osobno dla
-kazdego towarzysza, w jego wylosowanych kolorach. Dlatego towarzysz bez broni
-naprawde jej nie ma, a nie ma ja zamalowana.
+Sprite'y pochodza z [Pixel Art Sprite Mixer](https://kingbell.itch.io/pixel-sprite-mixer)
+KingBella (licencja CC-BY 4.0) - 115 animacji, z ktorych plugin uzywa
+kilkunastu. W repozytorium nie ma plikow graficznych: klatki sa spakowane jako
+tekst i przemalowywane w przegladarce na wylosowane kolory towarzysza, a
+elementy stroju (kapelusz maga, kly ogra) doklejane sa do glowy klatka po
+klatce.
 
 Autor: Dargoth

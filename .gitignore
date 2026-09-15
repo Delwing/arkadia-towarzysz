@@ -4,4 +4,5 @@ dist/
 .DS_Store
 .idea
 
-sprites-preview.png
+mixer-preview.png
+tools/mixer/cache/

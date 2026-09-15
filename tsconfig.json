@@ -12,5 +12,5 @@
     "noUncheckedIndexedAccess": true,
     "lib": ["ES2022", "DOM", "DOM.Iterable"]
   },
-  "include": ["plugin.ts", "companion", "voice", "render", "ui", "events", "text", "test"]
+  "include": ["plugin.ts", "companion", "voice", "render", "ui", "events", "text", "test", "tools"]
 }

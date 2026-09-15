@@ -12,12 +12,24 @@
  */
 
 import type { CompanionSpec } from '../companion/types';
-import { ANIMATIONS, drawSheetPixels, FRAME_H, FRAME_W, type SheetAnimation } from './sprites';
+import { frameIndex } from './pose';
+import type { SheetAnimation } from './animations';
+import { drawMixerPixels, mixerAnimations, MIXER_CELL_H, MIXER_CELL_W, MIXER_FIGURE_H } from './mixer';
+import { MIXER_FRAME_H, MIXER_FRAME_W } from './mixer-art';
 
 export interface LoadedSheet {
   image: CanvasImageSource;
   frameWidth: number;
   frameHeight: number;
+  /** Distance between two frames, which is the frame plus its gutter. */
+  cellWidth: number;
+  cellHeight: number;
+  /**
+   * How tall the figure should be drawn, in chip pixels. The drawn art is 16
+   * and the Mixer's is 48 at source; this is what the chip scales a frame to,
+   * so a taller sheet shows up bigger rather than filling the chip.
+   */
+  figureHeight: number;
   animations: Record<string, SheetAnimation>;
 }
 
@@ -28,17 +40,25 @@ export interface FrameRect {
   height: number;
 }
 
-/** Where a frame sits on the sheet; unknown animations fall back to `idle`, then to frame 0,0. */
+/**
+ * Where a frame sits on the sheet. `phase` is the animation's progress in
+ * [0, 1), which this resolves against however many frames *this* sheet carries
+ * - the drawn sheet and a Mixer sheet rarely agree on that. Unknown animations
+ * fall back to `idle`, then to frame 0,0.
+ */
 export function frameRect(
-  sheet: Pick<LoadedSheet, 'frameWidth' | 'frameHeight' | 'animations'>,
+  sheet: Pick<LoadedSheet, 'frameWidth' | 'frameHeight' | 'animations'> & Partial<Pick<LoadedSheet, 'cellWidth' | 'cellHeight'>>,
   animation: string,
-  index: number,
+  phase: number,
 ): FrameRect {
   const anim = sheet.animations[animation] ?? sheet.animations.idle;
   const row = anim?.row ?? 0;
   const frames = Math.max(1, anim?.frames ?? 1);
-  const column = ((Math.floor(index) % frames) + frames) % frames;
-  return { x: column * sheet.frameWidth, y: row * sheet.frameHeight, width: sheet.frameWidth, height: sheet.frameHeight };
+  const column = frameIndex(phase, frames);
+  // The step between frames is the cell; the rect itself is the frame inside it.
+  const stepX = sheet.cellWidth ?? sheet.frameWidth;
+  const stepY = sheet.cellHeight ?? sheet.frameHeight;
+  return { x: column * stepX, y: row * stepY, width: sheet.frameWidth, height: sheet.frameHeight };
 }
 
 /**
@@ -47,7 +67,7 @@ export function frameRect(
  * further.
  */
 export function buildSheet(spec: CompanionSpec): LoadedSheet {
-  const pixels = drawSheetPixels(spec);
+  const pixels = drawMixerPixels(spec);
   const canvas = document.createElement('canvas');
   canvas.width = pixels.width;
   canvas.height = pixels.height;
@@ -56,5 +76,13 @@ export function buildSheet(spec: CompanionSpec): LoadedSheet {
   const image = ctx.createImageData(pixels.width, pixels.height);
   image.data.set(pixels.data);
   ctx.putImageData(image, 0, 0);
-  return { image: canvas, frameWidth: FRAME_W, frameHeight: FRAME_H, animations: ANIMATIONS };
+  return {
+    image: canvas,
+    frameWidth: MIXER_FRAME_W,
+    frameHeight: MIXER_FRAME_H,
+    cellWidth: MIXER_CELL_W,
+    cellHeight: MIXER_CELL_H,
+    figureHeight: MIXER_FIGURE_H,
+    animations: mixerAnimations(),
+  };
 }
