@@ -39,6 +39,7 @@ events/bindings.ts     game event -> (primitive, intensity, speech category, moo
 events/sources.ts      client events and triggers -> game events
 text/polishNumbers.ts  "dwadziescia trzy" -> 23
 text/coins.ts          coin phrases -> copper
+text/properName.ts     "delwing" -> "Delwing", for what the player reads
 test/                  Vitest, DOM-free modules only
 tools/png.mjs          dependency-free RGBA PNG encoder, for yarn mixer preview
 tools/showcase/        the click-through preview of everything (yarn showcase)

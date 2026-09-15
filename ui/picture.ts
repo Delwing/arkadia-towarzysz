@@ -19,6 +19,7 @@ import { bucketLabel } from '../companion/mood';
 import { temperLabel } from '../companion/temper';
 import { voiceName } from '../voice/catalog';
 import { frameRect, type LoadedSheet } from '../render/sheet';
+import { properName } from '../text/properName';
 import { ARCHETYPE_LABELS } from './card';
 
 /** The card inside the picture, in logical pixels. */
@@ -128,7 +129,7 @@ export function drawCompanionPicture(view: PictureView, sheet: LoadedSheet | nul
   // name cannot be declined into anything better without guessing at its case.
   ctx.globalAlpha = 0.55;
   ctx.font = `9px ${SERIF}`;
-  ctx.fillText(`towarzysz postaci ${view.characterName} od ${metDate(state)}`, pad, PICTURE_H - 9);
+  ctx.fillText(`towarzysz postaci ${properName(view.characterName)} od ${metDate(state)}`, pad, PICTURE_H - 9);
   ctx.globalAlpha = 1;
 
   return canvas;

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { parsePolishNumber } from '../text/polishNumbers';
 import { coinsToCopper, formatCopper } from '../text/coins';
+import { properName } from '../text/properName';
 
 describe('polish numbers', () => {
   it('parses units, tens, hundreds and thousands', () => {
@@ -54,5 +55,26 @@ describe('coins', () => {
     expect(formatCopper(0)).toBe('0 mied');
     expect(formatCopper(253)).toBe('1 zl 1 sr 1 mied');
     expect(formatCopper(480)).toBe('2 zl');
+  });
+});
+
+describe('proper name', () => {
+  it('raises the first letter of a name that came in lower case', () => {
+    expect(properName('delwing')).toBe('Delwing');
+  });
+
+  it('leaves a name that is already right alone', () => {
+    expect(properName('Delwing')).toBe('Delwing');
+  });
+
+  it('raises every part of a name that has more than one', () => {
+    expect(properName('anna-maria')).toBe('Anna-Maria');
+    expect(properName("o'brien")).toBe("O'Brien");
+    expect(properName('stary wilk')).toBe('Stary Wilk');
+  });
+
+  it('survives what a name can never be', () => {
+    expect(properName('')).toBe('');
+    expect(properName('7')).toBe('7');
   });
 });

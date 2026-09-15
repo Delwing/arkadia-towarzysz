@@ -639,6 +639,12 @@ about the client or the registry and had to bend. Each one is easy to revisit.
 23b. `metAt` was added to the stored state for the card's "Towarzyszy od ...". A
     save that predates it is dated from the first load that finds it missing,
     and a date from the future is not believed.
+23c. **The character's name is raised only where it is read.** GMCP gives
+    `char.info.name` in lower case ("delwing"), and that exact string seeds the
+    roll and keys localStorage, so it is never touched at the source - raising
+    it there would hand every character a different companion and orphan the
+    saved one. `text/properName.ts` does it on the way out instead: the picture's
+    bottom line and the line the plugin logs when the character loads.
 
 ## Tooling
 

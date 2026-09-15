@@ -21,6 +21,7 @@ import { advance, bucket, bucketLabel, hold, nudge, set as setMood } from './com
 import { bandOf, isStale, rollTemper, temperLabel } from './companion/temper';
 import { load, pickStorage, save, type KeyValueStorage } from './companion/state';
 import { VOICES, voiceName } from './voice/catalog';
+import { properName } from './text/properName';
 import { Speaker } from './voice/speak';
 import { Animator } from './render/animator';
 import { buildSheet, type LoadedSheet } from './render/sheet';
@@ -296,7 +297,7 @@ class Towarzysz {
     this.sources?.restartTimers();
     this.refreshPopup();
     if (freshDay) this.scheduleGreeting();
-    log(`${state.spec.name} (${state.spec.archetype}, ${voiceName(state.spec.voiceId)}) towarzyszy postaci ${name}.`);
+    log(`${state.spec.name} (${state.spec.archetype}, ${voiceName(state.spec.voiceId)}) towarzyszy postaci ${properName(name)}.`);
   }
 
   private applySpec(): void {
