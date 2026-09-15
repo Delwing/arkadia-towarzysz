@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
   CLEAR_MIN_KILLS,
+  CLEAR_PROBABILITY_FULL,
+  CLEAR_PROBABILITY_MAX,
+  CLEAR_PROBABILITY_MIN,
+  clearProbability,
   GAME_EVENT_TYPES,
+  SILENT_EVENT_TYPES,
   GEM_BAD_COPPER,
   GEM_GOOD_COPPER,
   GEM_PRIORITY_COPPER,
@@ -15,6 +20,7 @@ import {
   type GameEvent,
 } from '../events/bindings';
 import { CATEGORIES, type Primitive } from '../companion/types';
+import { MOOD_MIN } from '../companion/mood';
 import { PRIMITIVES } from '../render/animations';
 import { COPPER_PER } from '../text/coins';
 
@@ -29,6 +35,7 @@ const SAMPLES: Record<GameEvent['type'], GameEvent> = {
   gem: { type: 'gem', copper: GEM_GOOD_COPPER },
   intox: { type: 'intox', level: 1 },
   hangover: { type: 'hangover', level: 1 },
+  fatigue: { type: 'fatigue' },
   knowledge: { type: 'knowledge' },
   clear: { type: 'clear', count: CLEAR_MIN_KILLS },
   stun: { type: 'stun', on: true },
@@ -36,11 +43,16 @@ const SAMPLES: Record<GameEvent['type'], GameEvent> = {
   travel: { type: 'travel' },
   transform: { type: 'transform' },
   idle: { type: 'idle' },
+  bored: { type: 'bored' },
+  temper: { type: 'temper' },
 };
+
+/** Every event the client can actually produce - which is all of them bar the plugin's own. */
+const CLIENT_EVENT_TYPES = GAME_EVENT_TYPES.filter((type) => !SILENT_EVENT_TYPES.includes(type));
 
 describe('bindings', () => {
   it('every client event maps to a valid primitive and category', () => {
-    for (const type of GAME_EVENT_TYPES) {
+    for (const type of CLIENT_EVENT_TYPES) {
       const reaction = resolve(SAMPLES[type]);
       expect(reaction, type).not.toBeNull();
       expect(PRIMITIVES).toContain(reaction!.primitive);
@@ -119,7 +131,7 @@ describe('bindings', () => {
     expect(ordinary.category).toBe('gemGood');
     expect(ordinary.priority).toBe(false);
 
-    for (const type of GAME_EVENT_TYPES) {
+    for (const type of CLIENT_EVENT_TYPES) {
       if (type === 'death' || type === 'improve' || type === 'gem' || type === 'transform') continue;
       expect(resolve(SAMPLES[type])!.priority, type).toBeFalsy();
     }
@@ -138,9 +150,27 @@ describe('bindings', () => {
     expect([...marked].sort()).toEqual([...PRIORITY_CATEGORIES].sort());
   });
 
+  it('declines the events that the plugin raises itself', () => {
+    // The greeting has lines and a category but no reaction: nothing in the
+    // game happened, so there is nothing to react to.
+    for (const type of SILENT_EVENT_TYPES) expect(resolve(SAMPLES[type]), type).toBeNull();
+    expect(SILENT_EVENT_TYPES.length).toBeGreaterThan(0);
+  });
+
+  it('puts the mood on the floor for a death instead of nudging it', () => {
+    const death = resolve({ type: 'death' })!;
+    // Not a delta: whatever kind of day it was, a death ends it.
+    expect(death.moodDelta).toBe(0);
+    expect(death.moodSet).toBe(MOOD_MIN);
+    // And nothing else works that way.
+    for (const type of CLIENT_EVENT_TYPES) {
+      if (type === 'death') continue;
+      expect(resolve(SAMPLES[type])?.moodSet, type).toBeUndefined();
+    }
+  });
+
   it('death topples, idle dozes, spend slumps', () => {
     expect(resolve({ type: 'death' })!.primitive).toBe('topple');
-    expect(resolve({ type: 'death' })!.moodDelta).toBeLessThan(0);
     expect(resolve({ type: 'idle' })!.primitive).toBe('doze');
     expect(resolve({ type: 'spend' })!.primitive).toBe('slump');
     expect(resolve({ type: 'spend' })!.moodDelta).toBe(0);
@@ -165,6 +195,52 @@ describe('bindings', () => {
     expect(sell.intensity).toBeLessThan(loot.intensity);
     expect(sell.moodDelta).toBeGreaterThan(0);
     expect(sell.moodDelta).toBeLessThan(loot.moodDelta);
+  });
+});
+
+describe('a cleared room', () => {
+  it('says nothing about a room that was one wandering rat', () => {
+    expect(resolve({ type: 'clear', count: 0 })).toBeNull();
+    expect(resolve({ type: 'clear', count: CLEAR_MIN_KILLS - 1 })).toBeNull();
+  });
+
+  it('is likelier to be worth a word the bigger the group was', () => {
+    const pair = resolve({ type: 'clear', count: 2 })!;
+    const few = resolve({ type: 'clear', count: 5 })!;
+    const many = resolve({ type: 'clear', count: CLEAR_PROBABILITY_FULL })!;
+    expect(pair.probability).toBe(CLEAR_PROBABILITY_MIN);
+    expect(many.probability).toBe(CLEAR_PROBABILITY_MAX);
+    expect(few.probability!).toBeGreaterThan(pair.probability!);
+    expect(few.probability!).toBeLessThan(many.probability!);
+    // And it tops out rather than climbing past certainty.
+    expect(resolve({ type: 'clear', count: 40 })!.probability).toBe(CLEAR_PROBABILITY_MAX);
+    expect(clearProbability(1)).toBe(CLEAR_PROBABILITY_MIN);
+  });
+
+  it('scales the cheer and what it was worth along with it', () => {
+    const pair = resolve({ type: 'clear', count: 2 })!;
+    const many = resolve({ type: 'clear', count: CLEAR_PROBABILITY_FULL })!;
+    expect(many.intensity).toBeGreaterThan(pair.intensity);
+    expect(many.moodDelta).toBeGreaterThan(pair.moodDelta);
+    expect(pair.moodDelta).toBeGreaterThan(0);
+  });
+
+  it('is the only thing that carries its own probability', () => {
+    for (const type of CLIENT_EVENT_TYPES) {
+      if (type === 'clear') continue;
+      expect(resolve(SAMPLES[type])?.probability, type).toBeUndefined();
+    }
+  });
+});
+
+describe('fatigue', () => {
+  it('sags and complains, and costs a little', () => {
+    const spent = resolve({ type: 'fatigue' })!;
+    expect(spent.primitive).toBe('slump');
+    expect(spent.category).toBe('fatigue');
+    expect(spent.moodDelta).toBeLessThan(0);
+    // Tiredness is a grumble, not an injury: it costs less than being hit.
+    expect(spent.moodDelta).toBeGreaterThan(resolve({ type: 'hurt', levelsLost: 1 })!.moodDelta);
   });
 });
 
@@ -255,7 +331,7 @@ describe('stances', () => {
   });
 
   it('leaves the posture alone for everything else', () => {
-    for (const type of GAME_EVENT_TYPES) {
+    for (const type of CLIENT_EVENT_TYPES) {
       if (type === 'fishing' || type === 'stun' || type === 'death') continue;
       expect(stanceFor(SAMPLES[type]), type).toBeUndefined();
     }

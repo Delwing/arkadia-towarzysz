@@ -9,6 +9,7 @@
 
 import { AMBIENT_LEVELS, CATEGORIES, STATE_VERSION, type AmbientLevel, type Category, type PersistedState } from './types';
 import { isValidSpec, roll } from './roll';
+import { isValidTemper, NO_TEMPER, type Temper } from './temper';
 import { VOICE_IDS } from '../voice/catalog';
 
 export const STORAGE_PREFIX = 'plugin:towarzysz:';
@@ -69,6 +70,9 @@ export function freshState(characterName: string, rerollsUsed = 0, now = Date.no
     rerollsUsed,
     mood: 0,
     moodTouchedAt: now,
+    // Stale by definition, so the plugin rolls the day's real one on load and
+    // there is one code path for a new companion and a returning one alike.
+    temper: { ...NO_TEMPER },
     metAt: now,
     mutes: { global: false, categories: [] },
     stats: { kills: 0, deaths: 0, sessions: 0 },
@@ -133,6 +137,10 @@ export function normalizeState(raw: unknown, characterName: string, now = Date.n
     // so a load starts the drift clock here rather than backdating it to
     // whenever the save was written.
     moodTouchedAt: now,
+    // A temper survives a relog inside the same evening and is rerolled after
+    // it; a save from before tempers existed loads the stale placeholder,
+    // which is the same thing the next morning looks like.
+    temper: isValidTemper(value.temper) ? (value.temper as Temper) : { ...NO_TEMPER },
     // A save from before the card existed records no first meeting; the first
     // load after the upgrade is the closest honest answer.
     metAt: Math.min(now, finite(value.metAt, now)),

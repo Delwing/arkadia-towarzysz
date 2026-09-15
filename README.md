@@ -224,23 +224,26 @@ client event
 | `kill` with `killer: "ME"` | `lunge`, scales with the 90 s streak | `kill` | +0.04 |
 | `gmcp.char.state.improve` climbs | `cheer` | `improve` | +0.25 |
 | `improve` reaches 15 | `cheer` x2.5 | `improveMax` | +0.45 |
-| `gmcp.char.state.hp` drops (condition index 0..6) | `flinch`, scales with the drop | `hurt` | -0.05 per level |
-| `Umierasz.` (or a `reset` after a respawn, if the line was missed) | `topple` | `death` | -0.35 |
+| `gmcp.char.state.hp` drops (condition index 0..6) | `flinch`, scales with the drop | `hurt` | -0.09 per level, 4 max |
+| `Umierasz.` (or a `reset` after a respawn, if the line was missed) | `topple` | `death` | **set to -1** |
 | `Bierzesz ... monet z ciala/sterty ...` / `Dostajesz ...` / `wyplaca ci ... monet` | `gulp`, scales with the copper value | `loot` | up to +0.15 |
 | `Kupujesz ...` / `Placisz ...` / `... zgarnia ... monet` / `... odbiera od ciebie ... monet ... w zamian za zakupiony towar` | `slump`, scales with the price when the line gives one | `spend` | 0 |
 | `Sprzedajesz ...` | `gulp` x0.8 - the coins, if any, land separately | `sell` | +0.05 |
 | gem valuation >= 1 mithryl (priority from 2) | `glitter` | `gemGood` | +0.10 |
-| gem valuation < 1 gold | `slump` | `gemBad` | -0.02 |
+| gem valuation < 1 gold | `slump` | `gemBad` | -0.04 |
 | `gmcp.char.state.intox` (0..9) crosses into a deeper third | `sway`, scales with the stage | `intox` | +0.06, nothing at the third |
-| `gmcp.char.state.headache` (0..6) crosses into a deeper third | `wince`, scales with the stage | `hangover` | -0.08 to -0.16 |
+| `gmcp.char.state.headache` (0..6) crosses into a deeper third | `wince`, scales with the stage | `hangover` | -0.13 to -0.26 |
+| `gmcp.char.state.fatigue` (0..9) crosses into `FATIGUE_SPENT` | `slump` x1.5 | `fatigue` | -0.06 |
 | `knowledgeTickEvent` - a field of knowledge grew | `glitter` | `knowledge` | +0.12 |
-| `allEnemiesKilled` after two or more of our own kills | `cheer`, scales with the group | `clear` | +0.12 |
-| `stunStart` / `stunEnd` | `stun`, held until the client says it is over | `stun` | -0.08 |
+| `allEnemiesKilled` after two or more of our own kills | `cheer`, scales with the group | `clear` | +0.06 to +0.12 |
+| `stunStart` / `stunEnd` | `stun`, held until the client says it is over | `stun` | -0.12 |
 | `fishing.state` -> `biting` | `cheer` x1.6 | `fishBite` | +0.03 |
 | `Wyciagasz zlapana rybe na powierzchnie.` | `glitter` x1.5 | `fishCatch` | +0.12 |
 | `transport.onBoard` becomes true | `sway` x0.9 | `travel` | +0.04 |
 | `player.objectNum` moves with no `reset` behind it - przeobrazenie, or it wearing off | `shift` (priority) | `transform` | +0.02 |
 | no command for 5 min (configurable) | `doze` (until the next command) | `idle` | 0 |
+| nothing in the table above for 7 min, with a command typed in the last 3 | `slump` x0.7 | `bored` | -0.03 |
+| the start of a session (not a client signal - see **The day's temper**) | `cheer` / `slump` / nothing | `temper` | sets the day |
 
 Two of those are states rather than moments, so they leave the companion in a
 **posture** - `events/bindings.ts` calls it a stance - which they hold between
@@ -261,6 +264,32 @@ One number in `[-1, +1]`, in `companion/mood.ts`. The events above nudge it by
 the amounts in the table; it clamps at both ends, so grinding kills cannot bank
 infinite goodwill, and it comes out as one of three buckets - `zle`,
 `spokojnie`, `dobrze` - which is all the voice packs and the card ever see.
+
+### The day's temper
+
+The drift does not pull toward 0. It pulls toward the **resting point**: the
+day's temper, rolled once a session in `companion/temper.ts` and kept in the
+save for `TEMPER_LIFE_MS` (6 h), so a relog is the same evening and tomorrow is
+a new day. One of three bands - a grim day rests in `[-0.55, -0.4]`, an
+ordinary one in `[-0.2, +0.2]`, a bright one in `[+0.4, +0.55]` - and the
+rolled voice weights the mix, so the Ponury wieszcz really does wake up grim
+more often than the Wierny giermek.
+
+A fresh roll starts the mood *at* its resting point and the companion says so:
+the `temper` category is the day's first line, four seconds after the character
+loads. Everything else still swings the mood the way it always did. What
+changed is what it swings around, and where it goes back to.
+
+This is what makes `zle` reachable at all. Before it, the table above was a
+dozen frequent positives against three rare negatives and a drift that erased
+both, so a session was `spokojnie` with good patches and nothing else, and the
+`zle` lines were written for a bucket almost nobody saw.
+
+A death is the other half of it: it does not nudge the mood, it **sets** it to
+-1 (`Reaction.moodSet`). Whatever kind of day it was, dying ends it, and
+climbing back out is the drift's job - the best part of an hour of playing on a
+bright day, and longer on a grim one, because the day is what they are climbing
+back to.
 
 Almost nothing in that table pushes it down: a death, a bad head, a few hit
 points. What actually ends a good evening is the drift back toward 0, with a

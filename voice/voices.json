@@ -2,6 +2,23 @@
   "giermek": {
     "name": "Wierny giermek",
     "lines": {
+      "temper": {
+        "spokojnie": [
+          "Dzien dobry. Kronika otwarta, pioro zaostrzone.",
+          "Jestem gotow. Co dzis robimy?",
+          "Wyspany, najedzony, do uslug."
+        ],
+        "zle": [
+          "Dzien dobry. Nie wyspalem sie. Wcale.",
+          "Cos mnie dzis gniecie. Nie pytaj co.",
+          "Jestem, jestem. Tylko nie w sosie."
+        ],
+        "dobrze": [
+          "Piekny dzien! Czuje, ze cos sie wydarzy.",
+          "Wstalem w znakomitym humorze. Idziemy!",
+          "Dzis nam pojdzie. Wiem to."
+        ]
+      },
       "kill": {
         "spokojnie": [
           "Czysta robota.",
@@ -169,6 +186,22 @@
           "Odpoczywaj. Kronika poczeka."
         ]
       },
+      "bored": {
+        "spokojnie": [
+          "Nudzi mi sie. Moze ruszymy gdzies?",
+          "Kronika ma dzis pusta strone.",
+          "Policzylem kamienie w tej okolicy. Sto dwanascie.",
+          "Moze jakis maly potwor? Jeden?"
+        ],
+        "zle": [
+          "Nic sie nie dzieje. Moze to i dobrze.",
+          "Nudno. Ale przynajmniej nikt nas nie bije."
+        ],
+        "dobrze": [
+          "Az sie nudzi. Przyjemnie.",
+          "Dobry dzien, tylko pusty. Poszukamy czegos?"
+        ]
+      },
       "intox": {
         "spokojnie": [
           "Za twoje zdrowie. I za moje, bo go potrzebuje.",
@@ -199,6 +232,22 @@
           "Przezyjemy. Powoli."
         ]
       },
+      "fatigue": {
+        "spokojnie": [
+          "Gdzie tak pedzisz? Zwolnij, prosze.",
+          "Nie nadazam. I ty chyba tez juz nie.",
+          "Moze chwila przerwy? Tylko chwila.",
+          "Zadyszka. Twoja i moja."
+        ],
+        "zle": [
+          "Padniesz mi tu. Zwolnij.",
+          "Ledwo dyszysz. Wystarczy juz tego."
+        ],
+        "dobrze": [
+          "Ho, ho! Ale tempo. Ale moze odsapnijmy.",
+          "Biegniesz jak do skarbu. Tylko oddychaj."
+        ]
+      },
       "knowledge": {
         "spokojnie": [
           "Cos ci w glowie zaskoczylo.",
@@ -225,7 +274,7 @@
           "Skonczylo sie. Usiadz na chwile."
         ],
         "dobrze": [
-          "Wymiotles ich, az milo.",
+          "Wymiot{les|las} ich, az milo.",
           "Czysto jak po zniwach."
         ]
       },
@@ -292,7 +341,7 @@
       "transform": {
         "spokojnie": [
           "To... nadal ty?",
-          "Zmieniles sie. Chwile mi to zajmie.",
+          "Zmieni{les|las} sie. Chwile mi to zajmie.",
           "Nowa skora. Przyzwyczaje sie."
         ],
         "zle": [
@@ -309,6 +358,23 @@
   "weteran": {
     "name": "Zgryzliwy weteran",
     "lines": {
+      "temper": {
+        "spokojnie": [
+          "No to jestem. Jak zwykle.",
+          "Dzien jak dzien. Moze byc.",
+          "Zyje. To juz cos."
+        ],
+        "zle": [
+          "Nie zaczynaj. Dzis nie ten dzien.",
+          "Kosci mnie lamia i humor mam podly. Uprzedzam.",
+          "Obudzilem sie zly. Bedzie tak caly dzien."
+        ],
+        "dobrze": [
+          "Ha! Dzis mi sie chce. Rzadko, ale sie zdarza.",
+          "Dobrze spalem. Nie przyzwyczajaj sie.",
+          "Humor mam dzis ludzki. Wykorzystaj to."
+        ]
+      },
       "kill": {
         "spokojnie": [
           "No wreszcie.",
@@ -476,6 +542,21 @@
           "Cisza. Dobra cisza."
         ]
       },
+      "bored": {
+        "spokojnie": [
+          "I co? Stoimy.",
+          "Za moich czasow tez sie nudzilo. Tylko blotnisciej.",
+          "Lazimy i lazimy. Bez sensu."
+        ],
+        "zle": [
+          "Nuda. Jeszcze tego brakowalo.",
+          "Nawet nudzic sie nie umiemy porzadnie."
+        ],
+        "dobrze": [
+          "Nudno. Ale niech bedzie.",
+          "Cisza i spokoj. Podejrzanie przyjemne."
+        ]
+      },
       "intox": {
         "spokojnie": [
           "Pijesz jak rekrut przed pierwsza bitwa.",
@@ -506,9 +587,24 @@
           "Chodz. Ruch to najlepsze lekarstwo."
         ]
       },
+      "fatigue": {
+        "spokojnie": [
+          "Zwolnij. Nikt za nami nie goni.",
+          "Gdzie ci tak spieszno? Nogi masz jedne.",
+          "Zajecha{les|las} sie. Widac z daleka."
+        ],
+        "zle": [
+          "Zdychasz na chodzie. Siadaj.",
+          "Tak to sie konczy. Mowilem."
+        ],
+        "dobrze": [
+          "Tempo masz dobre. Pluca gorzej.",
+          "Zwolnij, {mlody|mloda}. Droga dluga."
+        ]
+      },
       "knowledge": {
         "spokojnie": [
-          "Nauczyles sie czegos. Nie zmarnuj.",
+          "Nauczy{les|las} sie czegos. Nie zmarnuj.",
           "Powtarzanie. Na tym to polega.",
           "Jeszcze sto razy i moze wyjdzie."
         ],
@@ -529,7 +625,7 @@
         ],
         "zle": [
           "Pusto. Jak w twojej sakiewce.",
-          "Skonczyles. Brawo, naprawde."
+          "Skonczy{les|las}. Brawo, naprawde."
         ],
         "dobrze": [
           "Ladna robota. Nie przyzwyczajaj sie.",
@@ -538,7 +634,7 @@
       },
       "stun": {
         "spokojnie": [
-          "Dostales w leb. Klasyka.",
+          "Dosta{les|las} w leb. Klasyka.",
           "Stoisz jak slup. Pieknie.",
           "Policz do trzech i wracaj."
         ],
@@ -568,7 +664,7 @@
       },
       "fishCatch": {
         "spokojnie": [
-          "Zlowiles. Gratuluje, rybaku.",
+          "Zlowi{les|las}. Gratuluje, {rybaku|rybaczko}.",
           "Jedna. Do obiadu trzeba wiecej.",
           "Nie uciekla. Rzadkosc."
         ],
@@ -603,7 +699,7 @@
           "Poznaje cie po chodzie."
         ],
         "zle": [
-          "Zmieniles cialo. Szkoda, ze nie los.",
+          "Zmieni{les|las} cialo. Szkoda, ze nie los.",
           "I co, teraz bedzie lepiej?"
         ],
         "dobrze": [
@@ -616,6 +712,22 @@
   "wieszcz": {
     "name": "Ponury wieszcz",
     "lines": {
+      "temper": {
+        "spokojnie": [
+          "Dzien jak inne. Splot milczy.",
+          "Jestem. Wrozby dzis nijakie.",
+          "Patrze i czekam. Jak zawsze."
+        ],
+        "zle": [
+          "Zle sny. Splot dzis ciemny.",
+          "Cos wisi w powietrzu. I nie jest to deszcz.",
+          "Obudzilem sie z ciezarem. Nie wiem jeszcze czyim."
+        ],
+        "dobrze": [
+          "Dobry omen o poranku. Rzadka rzecz.",
+          "Swiatlo dzis lagodne. Korzystajmy."
+        ]
+      },
       "kill": {
         "spokojnie": [
           "Kolejna nic z wyroku losu.",
@@ -783,6 +895,21 @@
           "Cisza. Dzis laskawa."
         ]
       },
+      "bored": {
+        "spokojnie": [
+          "Nic sie nie dzieje. Splot tez bywa leniwy.",
+          "Pustka. Nawet wrozby milkna.",
+          "Swiat nie ma dzis nic do powiedzenia."
+        ],
+        "zle": [
+          "Nawet zla wrozba bylaby lepsza niz to nic.",
+          "Pustka. Najgorsza z odpowiedzi."
+        ],
+        "dobrze": [
+          "Cisza bez grozy. Rzadka rzecz.",
+          "Swiat drzemie. Niech drzemie."
+        ]
+      },
       "intox": {
         "spokojnie": [
           "Kielich pelny, pamiec pusta. Stara wymiana.",
@@ -813,6 +940,21 @@
           "Przejdzie. Wszystko przechodzi."
         ]
       },
+      "fatigue": {
+        "spokojnie": [
+          "Oddech ci sie rwie. Splot tego nie lubi.",
+          "Biegniesz, jakby cos gonilo. Moze goni.",
+          "Cialo ma swoje granice. Wlasnie o nich przypomina."
+        ],
+        "zle": [
+          "Zmeczenie i zla godzina. Zle polaczenie.",
+          "Tak konczy sie wiele opowiesci. Od biegu."
+        ],
+        "dobrze": [
+          "Nawet w dobry dzien nogi sie skoncza. Zwolnij.",
+          "Spiesz sie wolniej."
+        ]
+      },
       "knowledge": {
         "spokojnie": [
           "Wiedza wsiaka w ciebie jak deszcz w piach.",
@@ -840,7 +982,7 @@
         ],
         "dobrze": [
           "Zwyciestwo. Ktos je gdzies zapisze.",
-          "Wymiotles ich z tego swiata."
+          "Wymiot{les|las} ich z tego swiata."
         ]
       },
       "stun": {
@@ -876,7 +1018,7 @@
       "fishCatch": {
         "spokojnie": [
           "Woda oddala, co wziela.",
-          "Wyciagnales zycie z glebi.",
+          "Wyciagn{ales|elas} zycie z glebi.",
           "Jedno istnienie mniej pod tafla."
         ],
         "zle": [
@@ -923,6 +1065,20 @@
   "maloomowny": {
     "name": "Maloomowny",
     "lines": {
+      "temper": {
+        "spokojnie": [
+          "Jestem.",
+          "Hm."
+        ],
+        "zle": [
+          "Zly dzien.",
+          "Nie dzis."
+        ],
+        "dobrze": [
+          "Dobry dzien.",
+          "Dzis dobrze."
+        ]
+      },
       "kill": {
         "spokojnie": [
           "No.",
@@ -1067,6 +1223,19 @@
           "Spokoj."
         ]
       },
+      "bored": {
+        "spokojnie": [
+          "Nuda.",
+          "Hm.",
+          "..."
+        ],
+        "zle": [
+          "I nic."
+        ],
+        "dobrze": [
+          "Nudno. Ale dobrze."
+        ]
+      },
       "intox": {
         "spokojnie": [
           "Pijesz.",
@@ -1091,6 +1260,18 @@
         ],
         "dobrze": [
           "Przejdzie."
+        ]
+      },
+      "fatigue": {
+        "spokojnie": [
+          "Zwolnij.",
+          "Oddychaj."
+        ],
+        "zle": [
+          "Dosc."
+        ],
+        "dobrze": [
+          "Wolniej."
         ]
       },
       "knowledge": {

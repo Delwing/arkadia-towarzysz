@@ -9,6 +9,7 @@
 
 import type { PluginApi } from '@arkadia/plugin-types';
 import type { GameEvent } from './bindings';
+import { parseGender, type PlayerGender } from '../voice/gender';
 
 export const TRIGGER_TAG = 'towarzysz';
 /** Kills closer together than this count as one streak. */
@@ -31,6 +32,24 @@ export const BODY_SETTLE_MS = 400;
  * reeling for the rest of the evening because of it would read as a bug.
  */
 export const STUN_CAP_MS = 20_000;
+/**
+ * How recently a command must have been typed for the companion to count the
+ * player as being there. Boredom is the two things together - nothing
+ * happening, and somebody to be bored at - so without this a session left open
+ * overnight would be the same as one where the player is walking somewhere.
+ *
+ * The idle setting caps it as well (see `armBored` below), so a companion who
+ * has already dozed off never gets bored on top of it: asleep is asleep.
+ */
+export const BORED_ACTIVE_MS = 180_000;
+/**
+ * How long nothing worth a reaction has to go on for before the companion is
+ * bored by it. Long enough that a lull between two fights does not count, short
+ * enough to be reached by an evening of walking, shopping and talking - which
+ * is the stretch of a session the companion otherwise has nothing to say about
+ * at all.
+ */
+export const BORED_AFTER_MS = 7 * 60_000;
 
 /**
  * Where the money came from, for a `Bierzesz` line. Taking is not earning:
@@ -104,6 +123,17 @@ export const DEATH_PATTERNS: RegExp[] = [/^Umierasz\.$/];
  */
 export const INTOX_FIELD = 'intox';
 export const HANGOVER_FIELD = 'headache';
+/**
+ * Zmeczenie. `Char.State.fatigue` runs 0 (rested) to 9 (spent) and climbs as
+ * the character exerts themselves - the client's own "ZM" bar is drawn from it
+ * flipped, which is what makes a full bar an empty character.
+ *
+ * Unlike the drink, this is not cut into stages: there is only one thing worth
+ * saying about being tired and it is worth saying at the bottom of the bar.
+ * `FATIGUE_SPENT` is where "tired" becomes "cannot keep this up".
+ */
+export const FATIGUE_FIELD = 'fatigue';
+export const FATIGUE_SPENT = 8;
 /** Thresholds on `intox`, 0..9. */
 export const INTOX_STAGES: readonly [number, number, number] = [1, 4, 7];
 /** Thresholds on `headache`, 0..6. */
@@ -192,6 +222,12 @@ export interface SourceHandlers {
 
 export interface SourceOptions {
   idleMs(): number;
+  /**
+   * How long nothing may happen before the companion is bored by it. 0 turns
+   * boredom off. Not a user setting, unlike `idleMs` - the plugin passes
+   * `BORED_AFTER_MS` - but the tests need it out of the way.
+   */
+  boredMs(): number;
   coinsToCopper(text: string): number;
   now?: () => number;
   /** Test hook: replace timers. */
@@ -202,8 +238,8 @@ export interface SourceOptions {
 
 export interface Sources {
   detach(): void;
-  /** Restarts the idle timer, e.g. after the idle setting changed. */
-  restartIdleTimer(): void;
+  /** Restarts the idle and boredom clocks, e.g. after the idle setting changed. */
+  restartTimers(): void;
 }
 
 function guard<T extends unknown[]>(fn: (...args: T) => void, onError?: (error: unknown) => void): (...args: T) => void {
@@ -251,8 +287,13 @@ export function attachSources(api: PluginApi, handlers: SourceHandlers, options:
    */
   let lastIntoxStage: number | null = null;
   let lastHangoverStage: number | null = null;
+  /** Whether the last reading had them spent. null while nothing has been read. */
+  let lastSpent: boolean | null = null;
   let characterName: string | null = null;
   let idleHandle: unknown = null;
+  let boredHandle: unknown = null;
+  /** When the player last typed something. -Infinity until they do. */
+  let lastActivityAt = -Infinity;
 
   const clearIdle = (): void => {
     if (idleHandle !== null) clearTimer(idleHandle);
@@ -269,6 +310,51 @@ export function attachSources(api: PluginApi, handlers: SourceHandlers, options:
       }, onError),
       ms,
     );
+  };
+
+  const clearBored = (): void => {
+    if (boredHandle !== null) clearTimer(boredHandle);
+    boredHandle = null;
+  };
+  /**
+   * The boredom clock. Unlike the idle one it is restarted by *events* rather
+   * than by commands: typing is what proves the player is there, and is exactly
+   * what boredom is compatible with - a companion trailing you around a city
+   * while you shop is bored, and a companion in a fight is not.
+   *
+   * It re-arms itself whether or not it fired, so a player who walks away and
+   * comes back an hour later gets bored at again rather than never.
+   */
+  const armBored = (): void => {
+    clearBored();
+    const ms = options.boredMs();
+    if (!(ms > 0)) return;
+    boredHandle = setTimer(
+      guard(() => {
+        boredHandle = null;
+        try {
+          const idleMs = options.idleMs();
+          // Capped by the idle window so that a companion who has already
+          // dozed off is not also bored: that is one state, not two.
+          const window = idleMs > 0 ? Math.min(BORED_ACTIVE_MS, idleMs) : BORED_ACTIVE_MS;
+          if (now() - lastActivityAt <= window) handlers.onEvent({ type: 'bored' });
+        } finally {
+          armBored();
+        }
+      }, onError),
+      ms,
+    );
+  };
+
+  /**
+   * Every game event goes out through here, because every one of them is
+   * something happening - which is the one thing boredom is the absence of.
+   * The two clock-driven ones are not: falling asleep and being bored are what
+   * a quiet stretch produces, not what ends it.
+   */
+  const emit = (event: GameEvent): void => {
+    if (event.type !== 'idle' && event.type !== 'bored') armBored();
+    handlers.onEvent(event);
   };
 
   const resetBaselines = (): void => {
@@ -293,13 +379,18 @@ export function attachSources(api: PluginApi, handlers: SourceHandlers, options:
     clearStunTimer();
     if (!stunned) return;
     stunned = false;
-    handlers.onEvent({ type: 'stun', on: false });
+    emit({ type: 'stun', on: false });
   };
 
-  /** A new character's first state frame is a baseline, not a night out. */
-  const resetDrink = (): void => {
+  /**
+   * A new character's first state frame is a baseline, not a night out - and
+   * not a sprint either. Logging in drunk, hung over or out of breath is the
+   * state they are in, not something that just happened to them.
+   */
+  const resetBars = (): void => {
     lastIntoxStage = null;
     lastHangoverStage = null;
+    lastSpent = null;
   };
 
   const onKill = guard((payload: { killer: 'ME' | 'TEAM' | 'OTHER' }) => {
@@ -308,17 +399,17 @@ export function attachSources(api: PluginApi, handlers: SourceHandlers, options:
     killTimes = killTimes.filter((k) => t - k <= KILL_STREAK_WINDOW_MS);
     killTimes.push(t);
     killsSinceClear++;
-    handlers.onEvent({ type: 'kill', streak: killTimes.length });
+    emit({ type: 'kill', streak: killTimes.length });
   }, onError);
 
   const onAllEnemiesKilled = guard(() => {
     const count = killsSinceClear;
     killsSinceClear = 0;
-    handlers.onEvent({ type: 'clear', count });
+    emit({ type: 'clear', count });
   }, onError);
 
   const onKnowledgeTick = guard(() => {
-    handlers.onEvent({ type: 'knowledge' });
+    emit({ type: 'knowledge' });
   }, onError);
 
   const onStunStart = guard(() => {
@@ -326,7 +417,7 @@ export function attachSources(api: PluginApi, handlers: SourceHandlers, options:
     stunTimer = setTimer(guard(endStun, onError), STUN_CAP_MS);
     if (stunned) return;
     stunned = true;
-    handlers.onEvent({ type: 'stun', on: true });
+    emit({ type: 'stun', on: true });
   }, onError);
 
   const onStunEnd = guard(endStun, onError);
@@ -336,14 +427,14 @@ export function attachSources(api: PluginApi, handlers: SourceHandlers, options:
     if (typeof state !== 'string' || state === fishingState) return;
     const previous = fishingState;
     fishingState = state;
-    if (state === 'fishing') handlers.onEvent({ type: 'fishing', state: 'waiting' });
+    if (state === 'fishing') emit({ type: 'fishing', state: 'waiting' });
     // The fight with the fish is between the bite and the landing; the bite
     // already said everything there is to say about it.
-    else if (state === 'biting') handlers.onEvent({ type: 'fishing', state: 'bite' });
+    else if (state === 'biting') emit({ type: 'fishing', state: 'bite' });
     // Back to idle from anywhere is the rod coming out of the water. Whether
     // there was a fish on the end of it is the catch line's business, and it
     // arrives on the same frame; this one only ends the sitting.
-    else if (state === 'idle' && previous !== null) handlers.onEvent({ type: 'fishing', state: 'done' });
+    else if (state === 'idle' && previous !== null) emit({ type: 'fishing', state: 'done' });
   }, onError);
 
   const onBoard = guard((payload: boolean | undefined) => {
@@ -353,7 +444,7 @@ export function attachSources(api: PluginApi, handlers: SourceHandlers, options:
     // Only the getting on. Stepping off is not a moment, and the departure the
     // client also reports follows the boarding by seconds - one stagger per
     // journey is a companion on a deck, two is a companion with a problem.
-    if (next) handlers.onEvent({ type: 'travel' });
+    if (next) emit({ type: 'travel' });
   }, onError);
 
   /**
@@ -381,7 +472,7 @@ export function attachSources(api: PluginApi, handlers: SourceHandlers, options:
         bodyTimer = null;
         // A reset either side of this is the client calling it a new life.
         if (now() - lastResetAt < BODY_SETTLE_MS) return;
-        handlers.onEvent({ type: 'transform' });
+        emit({ type: 'transform' });
       }, onError),
       BODY_SETTLE_MS,
     );
@@ -395,14 +486,14 @@ export function attachSources(api: PluginApi, handlers: SourceHandlers, options:
       lastImprove = improve;
       // The first reading after login is a baseline; anything that is not a
       // climb is the counter resetting after absorption.
-      if (previous !== null && improve > previous) handlers.onEvent({ type: 'improve', from: previous, to: improve });
+      if (previous !== null && improve > previous) emit({ type: 'improve', from: previous, to: improve });
     }
     const hp = state?.hp;
     if (typeof hp === 'number') {
       const previous = lastHp;
       lastHp = hp;
       // Char.State.hp is a condition index, 0 = "ledwo zywy" .. 6 = "w swietnej kondycji".
-      if (previous !== null && hp < previous) handlers.onEvent({ type: 'hurt', levelsLost: previous - hp });
+      if (previous !== null && hp < previous) emit({ type: 'hurt', levelsLost: previous - hp });
     }
     const intox = state?.[INTOX_FIELD];
     if (typeof intox === 'number') {
@@ -412,7 +503,7 @@ export function attachSources(api: PluginApi, handlers: SourceHandlers, options:
       // The first reading is a baseline: logging in drunk is not a drink. After
       // that only a deeper stage is news - the same stage again is another sip,
       // and a shallower one is sobering up, which nobody comments on.
-      if (previous !== null && stage > previous) handlers.onEvent({ type: 'intox', level: stage });
+      if (previous !== null && stage > previous) emit({ type: 'intox', level: stage });
     }
     const headache = state?.[HANGOVER_FIELD];
     if (typeof headache === 'number') {
@@ -421,7 +512,18 @@ export function attachSources(api: PluginApi, handlers: SourceHandlers, options:
       lastHangoverStage = stage;
       // Same rule as the drink: the head arriving is an event, and the head
       // getting worse is another, but it ticking down all morning is not.
-      if (previous !== null && stage > previous) handlers.onEvent({ type: 'hangover', level: stage });
+      if (previous !== null && stage > previous) emit({ type: 'hangover', level: stage });
+    }
+    const fatigue = state?.[FATIGUE_FIELD];
+    if (typeof fatigue === 'number') {
+      const spent = fatigue >= FATIGUE_SPENT;
+      const previous = lastSpent;
+      lastSpent = spent;
+      // Only the crossing down into it. The number hovers at the bottom of the
+      // bar for as long as the running goes on, and a companion who said it
+      // every frame would be the nag the restraint rules exist to prevent;
+      // getting their breath back re-arms it for the next sprint.
+      if (previous === false && spent) emit({ type: 'fatigue' });
     }
   }, onError);
 
@@ -433,7 +535,7 @@ export function attachSources(api: PluginApi, handlers: SourceHandlers, options:
       characterName = name;
       deathReported = false;
       resetBaselines();
-      resetDrink();
+      resetBars();
       // Somebody else's evening: their rod, their ship, their aching head.
       endStun();
       fishingState = null;
@@ -466,7 +568,7 @@ export function attachSources(api: PluginApi, handlers: SourceHandlers, options:
       deathReported = false;
       return;
     }
-    if (wasAlive && sameCharacter) handlers.onEvent({ type: 'death' });
+    if (wasAlive && sameCharacter) emit({ type: 'death' });
   }, onError);
 
   const onDisconnect = guard(() => {
@@ -480,12 +582,15 @@ export function attachSources(api: PluginApi, handlers: SourceHandlers, options:
     aboard = false;
     deathReported = false;
     resetBaselines();
-    resetDrink();
+    resetBars();
     clearIdle();
+    clearBored();
+    lastActivityAt = -Infinity;
     handlers.onDisconnect();
   }, onError);
 
   const onCommand = guard(() => {
+    lastActivityAt = now();
     handlers.onActivity();
     armIdle();
   }, onError);
@@ -515,7 +620,7 @@ export function attachSources(api: PluginApi, handlers: SourceHandlers, options:
       (line, matches) => {
         passThrough((text) => {
           const copper = options.coinsToCopper(text);
-          if (copper > 0) handlers.onEvent({ type: 'loot', copper });
+          if (copper > 0) emit({ type: 'loot', copper });
         })(line as unknown as { text?: string }, matches);
         return line;
       },
@@ -528,7 +633,7 @@ export function attachSources(api: PluginApi, handlers: SourceHandlers, options:
       (line, matches) => {
         passThrough((text) => {
           const copper = options.coinsToCopper(text);
-          handlers.onEvent(copper > 0 ? { type: 'spend', copper } : { type: 'spend' });
+          emit(copper > 0 ? { type: 'spend', copper } : { type: 'spend' });
         })(line as unknown as { text?: string }, matches);
         return line;
       },
@@ -539,7 +644,7 @@ export function attachSources(api: PluginApi, handlers: SourceHandlers, options:
     api.triggers.register(
       pattern,
       (line, matches) => {
-        passThrough(() => handlers.onEvent({ type: 'sell' }))(line as unknown as { text?: string }, matches);
+        passThrough(() => emit({ type: 'sell' }))(line as unknown as { text?: string }, matches);
         return line;
       },
       TRIGGER_TAG,
@@ -551,7 +656,7 @@ export function attachSources(api: PluginApi, handlers: SourceHandlers, options:
       (line, matches) => {
         passThrough(() => {
           deathReported = true;
-          handlers.onEvent({ type: 'death' });
+          emit({ type: 'death' });
         })(line as unknown as { text?: string }, matches);
         return line;
       },
@@ -561,10 +666,7 @@ export function attachSources(api: PluginApi, handlers: SourceHandlers, options:
   api.triggers.register(
     FISH_CAUGHT_PATTERN,
     (line, matches) => {
-      passThrough(() => handlers.onEvent({ type: 'fishing', state: 'catch' }))(
-        line as unknown as { text?: string },
-        matches,
-      );
+      passThrough(() => emit({ type: 'fishing', state: 'catch' }))(line as unknown as { text?: string }, matches);
       return line;
     },
     TRIGGER_TAG,
@@ -574,7 +676,7 @@ export function attachSources(api: PluginApi, handlers: SourceHandlers, options:
     (line, matches) => {
       guard(() => {
         const copper = parseInt(matches?.[1] ?? '', 10);
-        if (Number.isFinite(copper)) handlers.onEvent({ type: 'gem', copper });
+        if (Number.isFinite(copper)) emit({ type: 'gem', copper });
       }, onError)();
       return line;
     },
@@ -593,10 +695,12 @@ export function attachSources(api: PluginApi, handlers: SourceHandlers, options:
     guard(() => handlers.onCharacter(initialName), onError)();
   }
   armIdle();
+  armBored();
 
   return {
     detach() {
       clearIdle();
+      clearBored();
       clearBodyTimer();
       clearStunTimer();
       api.events.off('kill', onKill);
@@ -618,7 +722,10 @@ export function attachSources(api: PluginApi, handlers: SourceHandlers, options:
         onError?.(error);
       }
     },
-    restartIdleTimer: armIdle,
+    restartTimers() {
+      armIdle();
+      armBored();
+    },
   };
 }
 
@@ -626,6 +733,19 @@ export function readGmcpName(api: PluginApi): string | null {
   try {
     const name = (api.gmcp.get() as { char?: { info?: { name?: unknown } } } | undefined)?.char?.info?.name;
     return typeof name === 'string' && name.trim() ? name.trim() : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The player's gender, as the client's last Char.Info left it. Read at the
+ * moment a line goes up rather than cached: przeobrazenie puts the character in
+ * somebody else's body, and the client updates Char.Info when it does.
+ */
+export function readGmcpGender(api: PluginApi): PlayerGender | null {
+  try {
+    return parseGender((api.gmcp.get() as { char?: { info?: { gender?: unknown } } } | undefined)?.char?.info?.gender);
   } catch {
     return null;
   }

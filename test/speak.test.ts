@@ -157,6 +157,20 @@ describe('speak', () => {
     }
   });
 
+  it('takes a per-event probability over the category default', () => {
+    const half = () => 0.5;
+    const speaker = new Speaker({ rng: half, globalCooldownMs: 0 });
+    // The category rule would decline at 0.5; the event says it is likelier.
+    expect(CATEGORY_RULES.clear.probability).toBeLessThan(0.5);
+    expect(speaker.maybe(voice, 'clear', 'spokojnie', noMutes, 0)).toBeNull();
+    expect(speaker.maybe(voice, 'clear', 'spokojnie', noMutes, 0, { probability: 0.9 })).not.toBeNull();
+    // ...and an event that says it is less likely is declined.
+    const later = CATEGORY_RULES.clear.cooldownMs;
+    expect(speaker.maybe(voice, 'clear', 'spokojnie', noMutes, later, { probability: 0.1 })).toBeNull();
+    // A nonsense override is ignored rather than trusted.
+    expect(speaker.maybe(voice, 'improve', 'spokojnie', noMutes, 0, { probability: -1 })).not.toBeNull();
+  });
+
   it('every voice pack is ASCII-folded and has a spokojnie line for every category', () => {
     for (const id of VOICE_IDS) {
       const pack = VOICES[id];

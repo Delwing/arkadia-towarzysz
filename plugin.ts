@@ -17,7 +17,8 @@
 import type { PluginApi, PluginInfo } from '@arkadia/plugin-types';
 
 import type { Category, PersistedState } from './companion/types';
-import { advance, bucket, bucketLabel, hold, nudge } from './companion/mood';
+import { advance, bucket, bucketLabel, hold, nudge, set as setMood } from './companion/mood';
+import { bandOf, isStale, rollTemper, temperLabel } from './companion/temper';
 import { load, pickStorage, save, type KeyValueStorage } from './companion/state';
 import { VOICES, voiceName } from './voice/catalog';
 import { Speaker } from './voice/speak';
@@ -27,7 +28,8 @@ import { Chip } from './ui/chip';
 import { Bubble } from './ui/bubble';
 import { AMBIENT_LABELS, buildCompanionCard, type CardHandlers, type CardView } from './ui/card';
 import { resolve, stanceFor, type GameEvent } from './events/bindings';
-import { attachSources, type Sources } from './events/sources';
+import { attachSources, BORED_AFTER_MS, readGmcpGender, type Sources } from './events/sources';
+import { applyGender } from './voice/gender';
 import { coinsToCopper } from './text/coins';
 
 const PLUGIN_NAME = 'Towarzysz';
@@ -51,6 +53,12 @@ const CARD_REFRESH_MS = 30_000;
  * inside a single chargeable step.
  */
 const MOOD_TICK_MS = 20_000;
+/**
+ * How long the day's greeting waits after the character loads. A load lands in
+ * the middle of the client's own login traffic, and a bubble in the middle of
+ * that reads as part of the noise rather than as somebody saying good morning.
+ */
+const GREETING_DELAY_MS = 4_000;
 
 /**
  * The animator runs on the requestAnimationFrame clock (performance.now()),
@@ -110,6 +118,7 @@ class Towarzysz {
   private characterName: string | null = null;
   private state: PersistedState | null = null;
   private saveTimer: ReturnType<typeof setTimeout> | null = null;
+  private greetTimer: ReturnType<typeof setTimeout> | null = null;
   private cardTimer: ReturnType<typeof setInterval> | null = null;
   private moodTimer: ReturnType<typeof setInterval> | null = null;
   /**
@@ -162,6 +171,7 @@ class Towarzysz {
       },
       {
         idleMs: () => (this.state?.settings.idleMinutes ?? 5) * 60_000,
+        boredMs: () => BORED_AFTER_MS,
         coinsToCopper,
         onError: (error) => log('blad w obsludze zdarzenia', error),
       },
@@ -203,6 +213,8 @@ class Towarzysz {
   destroy(): void {
     window.removeEventListener('beforeunload', this.flushSave);
     this.flushSave();
+    if (this.greetTimer) clearTimeout(this.greetTimer);
+    this.greetTimer = null;
     this.sources?.detach();
     this.sources = null;
     if (this.cardTimer) clearInterval(this.cardTimer);
@@ -240,18 +252,32 @@ class Towarzysz {
     if (this.characterName === name && this.state) return;
     this.flushSave();
     this.characterName = name;
+    const now = Date.now();
     const state = load(name, this.storage);
     state.stats.sessions += 1;
     this.state = state;
     this.speaker.reset();
+    // What kind of day the companion is having. A relog inside the same evening
+    // finds the temper it left and says nothing; a new one is rolled, the mood
+    // starts where that temper rests, and they say good morning about it.
+    // Starting the mood at the resting point is the point: a companion who
+    // announces a grim day and then shows yesterday's cheerful bar is a
+    // companion nobody believes.
+    const freshDay = isStale(state.temper, now);
+    if (freshDay) {
+      state.temper = rollTemper(Math.random, state.settings.voiceOverride ?? state.spec.voiceId, now);
+      state.mood = state.temper.resting;
+      state.moodTouchedAt = now;
+    }
     this.speaker.setGlobalCooldown(state.settings.globalCooldownMs);
     this.animator.setAmbientLevel(state.settings.ambientLevel);
     this.animator.setStance(null);
     this.animator.wake();
     this.applySpec();
     this.scheduleSave();
-    this.sources?.restartIdleTimer();
+    this.sources?.restartTimers();
     this.refreshPopup();
+    if (freshDay) this.scheduleGreeting();
     log(`${state.spec.name} (${state.spec.archetype}, ${voiceName(state.spec.voiceId)}) towarzyszy postaci ${name}.`);
   }
 
@@ -304,7 +330,13 @@ class Towarzysz {
     if (event.type === 'kill') state.stats.kills += 1;
     if (event.type === 'death') state.stats.deaths += 1;
 
-    const mood = nudge({ value: state.mood, touchedAt: state.moodTouchedAt }, reaction.moodDelta, now);
+    const before = { value: state.mood, touchedAt: state.moodTouchedAt, resting: state.temper.resting };
+    // A death does not argue with the mood, it replaces it; everything else
+    // nudges. See `Reaction.moodSet`.
+    const mood =
+      reaction.moodSet === undefined
+        ? nudge(before, reaction.moodDelta, now)
+        : setMood(before, reaction.moodSet, now);
     state.mood = mood.value;
     state.moodTouchedAt = mood.touchedAt;
 
@@ -313,10 +345,55 @@ class Towarzysz {
 
     const line = this.speaker.maybe(this.voice(), reaction.category, bucket(mood.value), state.mutes, now, {
       priority: reaction.priority === true,
+      ...(reaction.probability === undefined ? {} : { probability: reaction.probability }),
     });
-    if (line) this.bubble.show(line, this.chip.anchor);
+    this.say(line);
 
     this.scheduleSave();
+  }
+
+  /**
+   * The day's first line, once the login has settled. Guarded on the character
+   * still being the one the day was rolled for: a switch during the wait is a
+   * different companion having a different day.
+   */
+  private scheduleGreeting(): void {
+    if (this.greetTimer) clearTimeout(this.greetTimer);
+    const name = this.characterName;
+    this.greetTimer = setTimeout(() => {
+      this.greetTimer = null;
+      try {
+        if (this.characterName === name) this.greet();
+      } catch (error) {
+        log('blad przy powitaniu dnia', error);
+      }
+    }, GREETING_DELAY_MS);
+  }
+
+  private greet(): void {
+    const state = this.state;
+    if (!state) return;
+    const mood = this.currentMood();
+    // Priority, because this is the one line of the session that would be a bug
+    // if it went missing - but still `maybe`, so a muted companion stays muted.
+    const line = this.speaker.maybe(this.voice(), 'temper', bucket(mood), state.mutes, Date.now(), { priority: true });
+    if (!this.say(line)) return;
+    // The shrug or the bounce that goes with it. Tied to the line rather than
+    // to the roll: a companion who is not allowed to speak does not mime it.
+    const band = bandOf(state.temper.resting);
+    if (band === 'bright') this.animator.play('cheer', 1.4, animationNow());
+    else if (band === 'grim') this.animator.play('slump', 1.2, animationNow());
+  }
+
+  /**
+   * Put a line in the bubble, in the form that addresses this player. The one
+   * place a line reaches the screen, so the one place that has to know about
+   * "Zajechales" and "Zajechalas". Returns whether anything was said.
+   */
+  private say(line: string | null): boolean {
+    if (!line) return false;
+    this.bubble.show(applyGender(line, readGmcpGender(this.api)), this.chip.anchor);
+    return true;
   }
 
   private voice() {
@@ -335,7 +412,7 @@ class Towarzysz {
     const state = this.state;
     if (!state) return;
     const now = Date.now();
-    const before = { value: state.mood, touchedAt: state.moodTouchedAt };
+    const before = { value: state.mood, touchedAt: state.moodTouchedAt, resting: state.temper.resting };
     const after = this.connected ? advance(before, now) : hold(before, now);
     state.mood = after.value;
     state.moodTouchedAt = after.touchedAt;
@@ -348,7 +425,7 @@ class Towarzysz {
   private currentMood(): number {
     const state = this.state;
     if (!state) return 0;
-    const mood = { value: state.mood, touchedAt: state.moodTouchedAt };
+    const mood = { value: state.mood, touchedAt: state.moodTouchedAt, resting: state.temper.resting };
     const now = Date.now();
     return (this.connected ? advance(mood, now) : hold(mood, now)).value;
   }
@@ -399,7 +476,8 @@ class Towarzysz {
       }
       print(
         `${state.spec.name} (${state.spec.archetype}), glos: ${voiceName(state.settings.voiceOverride ?? state.spec.voiceId)}, ` +
-          `nastroj: ${bucketLabel(this.currentMood())}, ${state.mutes.global ? 'cisza' : 'mowi'}` +
+          `nastroj: ${bucketLabel(this.currentMood())} (dzis ${temperLabel(state.temper.resting)}), ` +
+          `${state.mutes.global ? 'cisza' : 'mowi'}` +
           `, ruch wlasny: ${AMBIENT_LABELS[state.settings.ambientLevel]}` +
           (state.mutes.categories.length ? `, wyciszone: ${state.mutes.categories.join(', ')}` : '') +
           `. Zabicia ${state.stats.kills}, smierci ${state.stats.deaths}, sesje ${state.stats.sessions}.`,
@@ -424,10 +502,9 @@ class Towarzysz {
   private saySomething(): void {
     const state = this.state;
     if (!state) return;
-    const categories: Category[] = ['idle', 'kill', 'loot', 'improve', 'hurt', 'spend'];
+    const categories: Category[] = ['idle', 'bored', 'kill', 'loot', 'improve', 'hurt', 'spend'];
     const category = categories[Math.floor(Math.random() * categories.length)] as Category;
-    const line = this.speaker.force(this.voice(), category, bucket(this.currentMood()));
-    if (line) this.bubble.show(line, this.chip.anchor);
+    this.say(this.speaker.force(this.voice(), category, bucket(this.currentMood())));
     this.animator.play('gulp', 0.8, animationNow());
   }
 

@@ -12,6 +12,7 @@
  */
 
 import type { AmbientLevel, Archetype, Category, PersistedState } from '../companion/types';
+import { temperLabel } from '../companion/temper';
 import { bucketLabel } from '../companion/mood';
 import { voiceName } from '../voice/catalog';
 
@@ -37,6 +38,7 @@ export const CATEGORY_LABELS: Record<Category, string> = {
   gemBad: 'Kiepskie kamienie',
   intox: 'Trunki',
   hangover: 'Kac',
+  fatigue: 'Zmeczenie',
   knowledge: 'Wiedza',
   clear: 'Oczyszczona lokacja',
   stun: 'Ogluszenie',
@@ -45,6 +47,8 @@ export const CATEGORY_LABELS: Record<Category, string> = {
   travel: 'Podroz',
   transform: 'Przeobrazenie',
   idle: 'Bezczynnosc',
+  bored: 'Nuda',
+  temper: 'Powitanie',
 };
 
 export const AMBIENT_LABELS: Record<AmbientLevel, string> = {
@@ -124,7 +128,7 @@ function rule(): HTMLDivElement {
  * left would read as a gauge of something the companion can run out of, and
  * the mood is not that.
  */
-function moodBar(mood: number): HTMLDivElement {
+function moodBar(mood: number, resting: number): HTMLDivElement {
   const value = Math.max(-1, Math.min(1, mood));
   const track = el('div', undefined, {
     position: 'relative',
@@ -156,6 +160,22 @@ function moodBar(mood: number): HTMLDivElement {
   });
   track.appendChild(fill);
   track.appendChild(centre);
+  // Where the day is pulling. Without it a companion sitting at -0.45 all
+  // evening looks like one who is sulking about something in particular.
+  const settled = Math.max(-1, Math.min(1, resting));
+  if (Math.abs(settled) > 0.02) {
+    const mark = el('div', undefined, {
+      position: 'absolute',
+      top: '0',
+      bottom: '0',
+      width: '2px',
+      marginLeft: '-1px',
+      left: `${((settled + 1) / 2) * 100}%`,
+      background: 'currentColor',
+      opacity: '0.9',
+    });
+    track.appendChild(mark);
+  }
   return track;
 }
 
@@ -238,7 +258,10 @@ export function buildCompanionCard(view: CardView, handlers: CardHandlers): HTML
   mood.appendChild(
     el('div', `Nastroj: ${bucketLabel(view.mood)}${state.mutes.global ? ' - i milczy' : ''}`, { fontSize: '11px', opacity: '0.85' }),
   );
-  mood.appendChild(moodBar(view.mood));
+  mood.appendChild(moodBar(view.mood, state.temper.resting));
+  mood.appendChild(
+    el('div', `Dzis: ${temperLabel(state.temper.resting)}`, { fontSize: '10px', opacity: '0.7', marginTop: '3px' }),
+  );
   root.appendChild(mood);
 
   root.appendChild(rule());

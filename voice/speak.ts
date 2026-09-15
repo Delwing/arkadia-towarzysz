@@ -12,6 +12,10 @@
  * `events/bindings.ts`). They speak through the global cooldown - through that
  * one only; mutes, the category cooldown and the probability all still apply.
  * How often a category may use the exemption is `priorityWindowMs`.
+ *
+ * The day's greeting (`temper`) asks for the exemption too, from `plugin.ts`
+ * rather than from a resolved event - which is why it is not in
+ * `PRIORITY_CATEGORIES`, a list about what `resolve` marks.
  */
 
 import type { Category, MoodBucket } from '../companion/types';
@@ -59,10 +63,18 @@ export const CATEGORY_RULES: Record<Category, CategoryRule> = {
   // only has to stop a second remark inside one evening's drinking.
   intox: { probability: 0.7, cooldownMs: 300_000 },
   hangover: { probability: 0.8, cooldownMs: 600_000 },
+  // The line is the whole reaction here - "where are you running, slow down" -
+  // so it speaks more often than most. The sources already ration it to one per
+  // sprint; the cooldown stops a morning of chases becoming a morning of
+  // nagging.
+  fatigue: { probability: 0.5, cooldownMs: 300_000 },
   // A tick of knowledge is rare - rarer than a postep - so nearly every one is
   // worth a word. The cooldown is only there for the odd cluster.
   knowledge: { probability: 0.7, cooldownMs: 90_000 },
-  clear: { probability: 0.2, cooldownMs: 180_000 },
+  // `resolve` overrides this per event, by the size of the group that went
+  // down: see `clearProbability`. What is left here is the floor it starts
+  // from, and what a `clear` would get if it ever arrived without a count.
+  clear: { probability: 0.1, cooldownMs: 180_000 },
   // Being stunned is not the moment for a speech, and it repeats inside one
   // fight; the animation carries it and the line is the rare aside.
   stun: { probability: 0.15, cooldownMs: 240_000 },
@@ -79,6 +91,15 @@ export const CATEGORY_RULES: Record<Category, CategoryRule> = {
   // only stops one przeobrazenie getting two lines out of the client.
   transform: { probability: 1, cooldownMs: 20_000 },
   idle: { probability: 0.5, cooldownMs: 600_000 },
+  // Boredom arrives every seven minutes of nothing and would be the chattiest
+  // thing on this list if it were let. The cooldown is what actually rations
+  // it: at most one remark about the quiet per quarter of an hour, and not
+  // every quiet stretch gets one.
+  bored: { probability: 0.4, cooldownMs: 900_000 },
+  // Said once, at the start of a session, and it is the line that tells the
+  // player what kind of day this is going to be - so it always speaks. The
+  // cooldown only stops a reconnect storm getting two good mornings out of it.
+  temper: { probability: 1, cooldownMs: 60_000 },
 };
 
 export interface Mutes {
@@ -99,6 +120,12 @@ export interface SpeakRequest {
    * priority at two mithryls and ordinary at one.
    */
   priority?: boolean;
+  /**
+   * This event's own chance of a line, in place of the category's. Same idea
+   * as `priority`: how much of an event this one was is the caller's
+   * judgement, not the category's. Out-of-range values are ignored.
+   */
+  probability?: number;
 }
 
 /** The lines a pack has for a category in a bucket; a missing bucket falls back to `spokojnie`. */
@@ -176,7 +203,11 @@ export class Speaker {
     const lastForCategory = this.lastByCategory.get(category) ?? -Infinity;
     if (now - lastForCategory < rule.cooldownMs) return null;
 
-    if (this.rng() >= rule.probability) return null;
+    const probability =
+      typeof request.probability === 'number' && request.probability >= 0 && request.probability <= 1
+        ? request.probability
+        : rule.probability;
+    if (this.rng() >= probability) return null;
 
     const line = this.pickLine(candidates, category);
     // A priority line still holds the rest back afterwards: shouting about a

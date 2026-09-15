@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { MemoryStorage, freshState, load, normalizeState, save, storageKey } from '../companion/state';
 import { roll } from '../companion/roll';
+import { isStale, NO_TEMPER } from '../companion/temper';
 
 describe('state', () => {
   it('uses the documented storage key', () => {
@@ -82,5 +83,34 @@ describe('state', () => {
     const state = load('Dargoth', broken);
     expect(state.spec).toEqual(roll('Dargoth', 0));
     expect(save('Dargoth', state, broken)).toBe(false);
+  });
+});
+
+describe("the day s temper in storage", () => {
+  it("survives a relog and comes back as it went in", () => {
+    const storage = new MemoryStorage();
+    const state = freshState("Dargoth", 0, 1000);
+    state.temper = { resting: -0.47, rolledAt: 900 };
+    save("Dargoth", state, storage);
+    expect(load("Dargoth", storage, 2000).temper).toEqual({ resting: -0.47, rolledAt: 900 });
+  });
+
+  it("loads the stale placeholder for a save that has none, so the next load rolls one", () => {
+    // Which is what every save written before tempers existed looks like.
+    const old = { ...freshState("Dargoth", 0, 0) } as Record<string, unknown>;
+    delete old.temper;
+    const loaded = normalizeState(old, "Dargoth", 5000);
+    expect(loaded).not.toBeNull();
+    expect(loaded!.temper).toEqual(NO_TEMPER);
+    expect(isStale(loaded!.temper, 5000)).toBe(true);
+  });
+
+  it("repairs a temper that cannot be trusted rather than losing the save", () => {
+    const state = freshState("Dargoth", 0, 0);
+    const broken = { ...state, temper: { resting: "bardzo zle", rolledAt: 1 }, stats: { kills: 9, deaths: 1, sessions: 3 } };
+    const loaded = normalizeState(broken, "Dargoth", 5000);
+    expect(loaded!.temper).toEqual(NO_TEMPER);
+    // The rest of the record is untouched: a bad day is not worth a lost tally.
+    expect(loaded!.stats.kills).toBe(9);
   });
 });

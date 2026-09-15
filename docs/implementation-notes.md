@@ -229,8 +229,65 @@ about the client or the registry and had to bend. Each one is easy to revisit.
     persisted, so a relog finds the companion on their feet, and `wake()` (a
     typed command) deliberately does not lift it: only coming back to life does.
 
+## The day's temper
+
+18. **The mood could not really go bad**, which made a third of every voice
+    pack unreachable. The table is a dozen frequent positives (kills, coins,
+    postepy) against three negatives that are rare (a death) or small (a few
+    hit points), and the drift pulled both back to the same neutral 0 - so
+    every evening looked alike and the `zle` lines were written for a bucket
+    almost nobody saw.
+19. **The fix is a resting point, not a starting value.** A starting value is
+    erased by twenty minutes of drift and the session goes back to looking the
+    same; the resting point is where the drift *ends up*. `Mood.resting` is
+    optional and defaults to 0, so a mood with no day behaves exactly as it
+    always did, and `decay` halves the distance still to cover rather than the
+    value - the same curve, a different destination.
+20. **One roll per session, not per companion.** `companion/temper.ts` rolls a
+    band (grim / even / bright) weighted by the rolled voice, then a value
+    inside it. It is kept in the save with a `rolledAt`, and `isStale` gives it
+    `TEMPER_LIFE_MS` (6 h): a disconnect and a relog are the same evening,
+    because a companion who is grim at nine should not be delighted at five
+    past because the router blinked. `rolledAt: 0` is the "never rolled"
+    sentinel, so a save from before tempers existed and a brand new companion
+    take the same code path.
+21. **A fresh roll also resets the mood to the resting point.** Otherwise a
+    companion who announces a grim day shows yesterday's cheerful bar for the
+    next hour, and nobody believes either of them.
+22. **A death sets the mood instead of nudging it** (`Reaction.moodSet`, the
+    only event that has one). It was -0.35, which on a good evening was a
+    fifteen-minute dip; it is -1 now. The recovery is the drift, and the day is
+    what it recovers *to*, so the same death costs more on a grim day than on a
+    bright one without anything having to say so.
+23. **The rest of the negatives were raised** to match - hurt to -0.09 a level
+    over four levels rather than three, stun to -0.12, the head to -0.16.
+
+## Gendered lines
+
+24. **Polish cannot address the player without knowing who they are.**
+    `Char.Info.gender` is 'male' or 'female', so lines that address the player
+    in a gendered form carry both: `"Zajecha{les|las} sie."`, expanded in
+    `voice/gender.ts` at the moment the bubble goes up. Inline markers rather
+    than a form per line, because the overwhelming majority of lines need
+    nothing - the companion mostly talks about themselves, about the world, or
+    in the present tense. Male is the fallback for an unknown gender, matching
+    the client's own default.
+25. **The gender is read from GMCP per line, not cached.** Przeobrazenie puts
+    the character in somebody else's body and the client updates `Char.Info`
+    when it does, so the companion addresses whoever is standing there now.
+26. **Only the player's gender varies; the companion's does not.** Their first
+    person is written male throughout ("Widzialem", "Mowilem"), and that is
+    deliberate rather than an oversight: the name pools carry no feminine names
+    for the same reason (see `companion/names.ts`) - the sprite has a single
+    body and no female looks, so a feminine companion would be a name and a
+    pronoun with nothing behind them. The markers are therefore always about
+    who is being spoken *to*, never about who is speaking.
+
 ## Data model
 
+4b. **`PersistedState.temper` was added** and is repaired rather than rejected
+   when it is missing or broken, like every other secondary field: a bad day is
+   not worth a lost tally. Still `version: 1`.
 5. **`PersistedState.settings` was added** (`voiceOverride`, `globalCooldownMs`,
    `idleMinutes`). The spec's panel lists a voice override and a cooldown but
    the spec's state shape had nowhere to keep them. Still `version: 1`; missing
@@ -334,6 +391,16 @@ about the client or the registry and had to bend. Each one is easy to revisit.
     deliberately quiet reaction, because when the game prints the payment it
     arrives on the next line and fires a full `loot` of its own; the sale is
     the smaller half of that pair, not a duplicate of it.
+12d. **Fatigue**: `Char.State.fatigue` runs 0 (rested) to 9 (spent) and climbs
+    with exertion - the client draws its "ZM" bar from it flipped, which is why
+    a full bar is an empty character. Unlike the drink it is not cut into
+    stages: there is one thing worth saying about being tired and it is worth
+    saying at the bottom of the bar, so a single crossing up into
+    `FATIGUE_SPENT` is the event. The number then sits there for as long as the
+    running goes on, so the reaction is armed by getting your breath back, not
+    by a timer; and as everywhere else, the first reading after a login or a
+    character switch is a baseline, because logging in winded is a state and
+    not something that just happened.
 12c. **Drink**: `Char.State.intox` and `Char.State.headache`, read the way
     `improve` and `hp` are - numbers that move, not lines of text. The client's
     own bars give the scales: `intox` ("UPI") is 0..9 and `headache` ("KAC")
@@ -395,6 +462,17 @@ about the client or the registry and had to bend. Each one is easy to revisit.
     From **2 mithryls** the reaction is priority (note 17b).
 14. **Idle**: no `command` event for `idleMinutes` (default 5, configurable in
     the panel). The doze is sustained until the next command.
+14b. **Boredom** is the other half of a quiet stretch: no *event* for
+    `BORED_AFTER_MS` (7 min) while the player is still typing. The two clocks
+    are driven by opposite things on purpose - the idle one restarts on a
+    command, the boredom one on an event - because being bored is exactly the
+    combination of nothing happening and somebody there to notice it. A command
+    inside `BORED_ACTIVE_MS` (3 min) is what "there" means, capped by the idle
+    window so that a companion who has already dozed off is not also bored:
+    that is one state, not two. The clock re-arms itself whether or not it
+    fired, so a player who walks away for an hour is bored at again when they
+    come back rather than never. Not configurable - unlike the idle pause,
+    there is no setting for it, because there is no session it would spoil.
 15. **Purchases and improve** rely on GMCP `Char.State.improve` semantics as
     `arkadia-konfetti` reads them: first reading is a baseline, only climbs
     count, 15 is the top.

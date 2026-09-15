@@ -12,6 +12,7 @@
  */
 
 import type { Category, Primitive } from '../companion/types';
+import { MOOD_MIN } from '../companion/mood';
 import { COPPER_PER } from '../text/coins';
 
 export const MAX_IMPROVE = 15;
@@ -35,6 +36,11 @@ export type GameEvent =
   | { type: 'intox'; level: number }
   /** The head the next morning, in the same three stages, off `Char.State.headache`. */
   | { type: 'hangover'; level: number }
+  /**
+   * Zmeczenie at the bottom of the bar: `Char.State.fatigue` crossed into
+   * `FATIGUE_SPENT`. One event per sprint, not one per frame.
+   */
+  | { type: 'fatigue' }
   /** The game said a field of knowledge grew. One tick, whichever field it was. */
   | { type: 'knowledge' }
   /**
@@ -54,7 +60,19 @@ export type GameEvent =
   | { type: 'travel' }
   /** The character is wearing a different body: przeobrazenie, or it wearing off. */
   | { type: 'transform' }
-  | { type: 'idle' };
+  | { type: 'idle' }
+  /**
+   * Nothing the companion would react to has happened for a while, and the
+   * player is still at the keyboard - see `events/sources.ts`. Not the same as
+   * `idle`, which is the player gone and the companion asleep.
+   */
+  | { type: 'bored' }
+  /**
+   * The day's temper, rolled at the start of a session. Not a client signal and
+   * never resolved to a reaction - the plugin speaks it directly. It is in this
+   * union so that nothing can quietly forget it exists.
+   */
+  | { type: 'temper' };
 
 export type GameEventType = GameEvent['type'];
 
@@ -69,6 +87,7 @@ export const GAME_EVENT_TYPES: readonly GameEventType[] = [
   'gem',
   'intox',
   'hangover',
+  'fatigue',
   'knowledge',
   'clear',
   'stun',
@@ -76,13 +95,30 @@ export const GAME_EVENT_TYPES: readonly GameEventType[] = [
   'travel',
   'transform',
   'idle',
+  'bored',
 ];
+
+/** The events that are the plugin's own, not the client's; `resolve` declines them. */
+export const SILENT_EVENT_TYPES: readonly GameEventType[] = ['temper'];
 
 export interface Reaction {
   primitive: Primitive;
   intensity: number;
   category: Category;
   moodDelta: number;
+  /**
+   * The mood this event *puts* the companion in, ignoring where they were and
+   * ignoring `moodDelta`. Only a death has one: every other event argues with
+   * the mood by degrees, and a death ends the argument.
+   */
+  moodSet?: number;
+  /**
+   * This event's own chance of a line, in place of the category's flat one.
+   * For a category whose events differ in size rather than in kind: a room
+   * cleared of two rats and one cleared of eight are the same `clear`, and one
+   * of them is worth mentioning.
+   */
+  probability?: number;
   /**
    * Big enough to speak through the global cooldown (`voice/speak.ts`). The
    * judgement is per event, not per category: the same `gemGood` is priority
@@ -103,21 +139,30 @@ export const MOOD = {
   improve: 0.25,
   improveMax: 0.45,
   gemGood: 0.1,
-  gemBad: -0.02,
-  hurt: -0.05,
-  death: -0.35,
+  gemBad: -0.04,
+  hurt: -0.09,
+  /** Not a nudge but a destination: see `Reaction.moodSet`. */
+  death: MOOD_MIN,
   spend: 0,
   sell: 0.05,
   intox: 0.06,
-  hangover: -0.1,
+  hangover: -0.16,
+  // Being run into the ground is the companion's complaint, not an injury -
+  // but it repeats through a long chase, so it is kept small.
+  fatigue: -0.06,
   knowledge: 0.12,
   clear: 0.12,
-  stun: -0.08,
+  stun: -0.12,
   fishBite: 0.03,
   fishCatch: 0.12,
   travel: 0.04,
   transform: 0.02,
   idle: 0,
+  // Small, but it repeats: a long stretch of nothing settles the mood a little
+  // below level rather than leaving it where the last good thing put it.
+  bored: -0.03,
+  // The day's greeting reports the mood it was rolled with; it does not move it.
+  temper: 0,
 } as const;
 
 /**
@@ -127,6 +172,23 @@ export const MOOD = {
  * fight you won rather than a thing you did.
  */
 export const CLEAR_MIN_KILLS = 2;
+/**
+ * How likely a cleared room is to get a word, from the smallest group worth
+ * counting up to a proper fight. A flat chance cannot serve both: tuned for a
+ * pair of rats it stays silent about the ambush, and tuned for the ambush it
+ * chatters about every pair of rats.
+ */
+export const CLEAR_PROBABILITY_MIN = 0.1;
+export const CLEAR_PROBABILITY_MAX = 0.9;
+/** The group size at which the chance tops out. */
+export const CLEAR_PROBABILITY_FULL = 8;
+
+/** 0..1 for a room cleared of `count` enemies. */
+export function clearProbability(count: number): number {
+  const span = CLEAR_PROBABILITY_FULL - CLEAR_MIN_KILLS;
+  const share = Math.min(1, Math.max(0, (count - CLEAR_MIN_KILLS) / span));
+  return CLEAR_PROBABILITY_MIN + (CLEAR_PROBABILITY_MAX - CLEAR_PROBABILITY_MIN) * share;
+}
 
 /**
  * Copper worth of a gem read-out that counts as "high" / "low"; between the
@@ -180,11 +242,24 @@ export function resolve(event: GameEvent): Reaction | null {
         primitive: 'flinch',
         intensity: clampIntensity(0.8 + lost * 0.5),
         category: 'hurt',
-        moodDelta: MOOD.hurt * Math.min(lost, 3),
+        // Four levels, not three: being beaten from healthy down to barely
+        // standing is most of the way to a death and should cost most of what
+        // a death costs.
+        moodDelta: MOOD.hurt * Math.min(lost, 4),
       };
     }
     case 'death':
-      return { primitive: 'topple', intensity: 1, category: 'death', moodDelta: MOOD.death, priority: true };
+      return {
+        primitive: 'topple',
+        intensity: 1,
+        category: 'death',
+        // Nothing is added: dying puts the mood on the floor, whatever kind of
+        // day it had been until then. Climbing back out is the drift's job and
+        // it takes the best part of an hour of playing.
+        moodDelta: 0,
+        moodSet: MOOD.death,
+        priority: true,
+      };
     case 'loot': {
       if (!(event.copper > 0)) return null;
       const share = Math.min(1, event.copper / LOOT_FULL_COPPER);
@@ -247,6 +322,10 @@ export function resolve(event: GameEvent): Reaction | null {
         moodDelta: MOOD.hangover * (0.8 + (level - 1) * 0.4),
       };
     }
+    case 'fatigue':
+      // Winded, and saying so. The same sag a bad purchase gets, harder: this
+      // is the animation carrying "slow down" while the line says it.
+      return { primitive: 'slump', intensity: 1.5, category: 'fatigue', moodDelta: MOOD.fatigue };
     case 'knowledge':
       // One tick is one tick: the game does not say how big it was, so neither
       // does the companion.
@@ -254,11 +333,16 @@ export function resolve(event: GameEvent): Reaction | null {
     case 'clear': {
       const count = Math.floor(event.count);
       if (count < CLEAR_MIN_KILLS) return null;
+      // Everything about this one scales with the size of the group, because
+      // that is the only thing that distinguishes two of them: how big the
+      // cheer is, how much it was worth, and how likely they are to say so.
+      const share = Math.min(1, (count - CLEAR_MIN_KILLS) / (CLEAR_PROBABILITY_FULL - CLEAR_MIN_KILLS));
       return {
         primitive: 'cheer',
         intensity: clampIntensity(0.9 + (count - CLEAR_MIN_KILLS) * 0.25),
         category: 'clear',
-        moodDelta: MOOD.clear,
+        moodDelta: MOOD.clear * (0.5 + 0.5 * share),
+        probability: clearProbability(count),
       };
     }
     case 'stun':
@@ -283,6 +367,14 @@ export function resolve(event: GameEvent): Reaction | null {
       return { primitive: 'shift', intensity: 1, category: 'transform', moodDelta: MOOD.transform, priority: true };
     case 'idle':
       return { primitive: 'doze', intensity: 1, category: 'idle', moodDelta: MOOD.idle };
+    case 'bored':
+      // A sag, not a doze: they are awake, they are just out of things to do.
+      return { primitive: 'slump', intensity: 0.7, category: 'bored', moodDelta: MOOD.bored };
+    // The greeting is not a reaction to anything the game did: the plugin says
+    // it once a session, off the temper it just rolled. It is a category and a
+    // set of lines, and there is no event that resolves to it.
+    case 'temper':
+      return null;
   }
 }
 

@@ -3,6 +3,10 @@
  * module can import it without pulling anything else in.
  */
 
+import type { Temper } from './temper';
+
+export type { Temper } from './temper';
+
 export type Archetype =
   | 'magician'
   | 'wizard'
@@ -72,7 +76,13 @@ export type Category =
   | 'travel'
   /** Przeobrazenie: you are wearing somebody else. */
   | 'transform'
-  | 'idle';
+  | 'idle'
+  /** Awake, at the keyboard, and nothing has happened for a good while. */
+  | 'bored'
+  /** Zmeczenie at the bottom of the bar: the character cannot keep this up. */
+  | 'fatigue'
+  /** How they woke up: the day's first line. See `companion/temper.ts`. */
+  | 'temper';
 
 export const CATEGORIES: readonly Category[] = [
   'kill',
@@ -95,6 +105,9 @@ export const CATEGORIES: readonly Category[] = [
   'travel',
   'transform',
   'idle',
+  'bored',
+  'fatigue',
+  'temper',
 ];
 
 /** Mood buckets used for line selection. */
@@ -124,6 +137,11 @@ export interface PersistedState {
   mood: number;
   /** Epoch ms of the last nudge or drift step. A load re-bases it to now. */
   moodTouchedAt: number;
+  /**
+   * The day's temper: where the mood settles. Rolled once a session rather
+   * than once per companion - see `companion/temper.ts`.
+   */
+  temper: Temper;
   /** Epoch ms of the first meeting; the card shows it. Older saves get their load time. */
   metAt: number;
   mutes: { global: boolean; categories: Category[] };

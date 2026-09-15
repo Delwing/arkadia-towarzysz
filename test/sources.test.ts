@@ -6,6 +6,8 @@ import {
   HANGOVER_STAGES,
   INTOX_STAGES,
   stageOf,
+  BORED_ACTIVE_MS,
+  FATIGUE_SPENT,
   STUN_CAP_MS,
   type Sources,
 } from '../events/sources';
@@ -68,7 +70,17 @@ interface Harness {
   advance(ms: number): void;
 }
 
-function harness(characterName: string | null = 'Delwing', objectNum: number | null = 101): Harness {
+interface HarnessOptions {
+  /** 0 - the default here - leaves the clock off, which is what most tests want. */
+  idleMs?: number;
+  boredMs?: number;
+}
+
+function harness(
+  characterName: string | null = 'Delwing',
+  objectNum: number | null = 101,
+  options: HarnessOptions = {},
+): Harness {
   const client = new FakeClient();
   if (characterName) client.gmcpData = { char: { info: { name: characterName, object_num: objectNum } } };
   const events: GameEvent[] = [];
@@ -90,7 +102,9 @@ function harness(characterName: string | null = 'Delwing', objectNum: number | n
       onDisconnect: () => undefined,
     },
     {
-      idleMs: () => 0, // no idle timer in these tests
+      // Both clocks are off unless a test asks for one.
+      idleMs: () => options.idleMs ?? 0,
+      boredMs: () => options.boredMs ?? 0,
       coinsToCopper,
       now: () => clock,
       setTimer: (fn, ms) => {
@@ -634,5 +648,126 @@ describe('knowledge', () => {
     const h = harness();
     h.client.emit('knowledgeTickEvent', { category: 'walka', dative: 'walce' });
     expect(h.events).toEqual([{ type: 'knowledge' }]);
+  });
+});
+
+describe('boredom', () => {
+  const BORED_MS = 60_000;
+  const bored = (extra: HarnessOptions = {}) => harness('Delwing', 101, { boredMs: BORED_MS, ...extra });
+
+  it('gets bored when nothing happens and the player is still typing', () => {
+    const h = bored();
+    h.client.emit('command', 'polnoc');
+    h.advance(BORED_MS);
+    expect(h.events).toEqual([{ type: 'bored' }]);
+  });
+
+  it('stays quiet when nobody is at the keyboard', () => {
+    const h = bored();
+    // Never typed anything at all, and then typed something too long ago.
+    h.advance(BORED_MS);
+    expect(h.events).toEqual([]);
+    h.client.emit('command', 'polnoc');
+    h.advance(BORED_ACTIVE_MS + 1);
+    h.advance(BORED_MS);
+    expect(h.events).toEqual([]);
+  });
+
+  it('is not bored on top of being asleep', () => {
+    // A short idle setting means the companion dozed off before the boredom
+    // was due; the activity window shrinks with it, so they only doze.
+    const h = bored({ idleMs: 10_000 });
+    h.client.emit('command', 'polnoc');
+    h.advance(BORED_MS);
+    expect(h.events).toEqual([{ type: 'idle' }]);
+  });
+
+  it('starts the clock again whenever something happens', () => {
+    const h = bored();
+    h.client.emit('command', 'zabij szczura');
+    h.advance(BORED_MS - 1);
+    h.client.emit('kill', { killer: 'ME' });
+    h.advance(BORED_MS - 1);
+    expect(h.events).toEqual([{ type: 'kill', streak: 1 }]);
+    h.advance(1);
+    expect(h.events).toEqual([{ type: 'kill', streak: 1 }, { type: 'bored' }]);
+  });
+
+  it('keeps getting bored, and does not need a command in between', () => {
+    const h = bored();
+    h.client.emit('command', 'polnoc');
+    h.advance(BORED_MS);
+    h.advance(BORED_MS);
+    expect(h.events).toEqual([{ type: 'bored' }, { type: 'bored' }]);
+  });
+
+  it('gets bored again after the player comes back', () => {
+    const h = bored();
+    // Away for long enough that several boredoms came and went unheard.
+    h.advance(BORED_MS * 5);
+    expect(h.events).toEqual([]);
+    h.client.emit('command', 'polnoc');
+    h.advance(BORED_MS);
+    expect(h.events).toEqual([{ type: 'bored' }]);
+  });
+
+  it('stops at a disconnect', () => {
+    const h = bored();
+    h.client.emit('command', 'polnoc');
+    h.client.emit('client.disconnect');
+    h.advance(BORED_MS * 3);
+    expect(h.events).toEqual([]);
+  });
+
+  it('stops when the sources are detached', () => {
+    const h = bored();
+    h.client.emit('command', 'polnoc');
+    h.sources.detach();
+    h.advance(BORED_MS * 3);
+    expect(h.events).toEqual([]);
+  });
+});
+
+describe('fatigue', () => {
+  it('speaks up when the bar bottoms out, once per sprint', () => {
+    const h = harness();
+    h.client.emit('gmcp.char.state', { fatigue: 0 });
+    h.client.emit('gmcp.char.state', { fatigue: FATIGUE_SPENT - 1 });
+    expect(h.events).toEqual([]);
+    h.client.emit('gmcp.char.state', { fatigue: FATIGUE_SPENT });
+    // The number sits at the bottom of the bar for as long as the running
+    // lasts; the companion says it once, not once a frame.
+    h.client.emit('gmcp.char.state', { fatigue: FATIGUE_SPENT + 1 });
+    h.client.emit('gmcp.char.state', { fatigue: 9 });
+    expect(h.events).toEqual([{ type: 'fatigue' }]);
+  });
+
+  it('re-arms once they have their breath back', () => {
+    const h = harness();
+    h.client.emit('gmcp.char.state', { fatigue: 0 });
+    h.client.emit('gmcp.char.state', { fatigue: 9 });
+    h.client.emit('gmcp.char.state', { fatigue: 1 });
+    h.client.emit('gmcp.char.state', { fatigue: 9 });
+    expect(h.events).toEqual([{ type: 'fatigue' }, { type: 'fatigue' }]);
+  });
+
+  it('takes the first reading as a baseline, so logging in winded is not news', () => {
+    const h = harness();
+    h.client.emit('gmcp.char.state', { fatigue: 9 });
+    expect(h.events).toEqual([]);
+    // And a character switch starts a fresh baseline the same way.
+    h.client.emit('gmcp.char.state', { fatigue: 0 });
+    h.client.emit('gmcp.char.info', { name: 'Ktosinny', object_num: 77 });
+    h.client.emit('gmcp.char.state', { fatigue: 9 });
+    expect(h.events).toEqual([]);
+  });
+
+  it('ignores a state frame that says nothing about it', () => {
+    const h = harness();
+    h.client.emit('gmcp.char.state', { fatigue: 0 });
+    h.client.emit('gmcp.char.state', {});
+    h.client.emit('gmcp.char.state', { fatigue: 'bardzo' });
+    h.client.emit('gmcp.char.state', { fatigue: 9 });
+    expect(h.events).toEqual([{ type: 'fatigue' }]);
   });
 });

@@ -2,10 +2,17 @@
  * Mood: a single scalar in [-1, +1] that biases line selection.
  *
  * It nudges on events, clamps after every nudge (grinding kills cannot bank
- * infinite goodwill) and drifts back toward 0 with a half-life of about twenty
- * minutes. Very little in the game pushes the mood down - a death, a bad head,
- * a few hit points - so the drift is what actually ends a good evening: it is
- * the dampener, and everything else is a nudge away from level.
+ * infinite goodwill) and drifts back toward its resting point with a half-life
+ * of about twenty minutes. Very little in the game pushes the mood down - a
+ * death, a bad head, a few hit points - so the drift is what actually ends a
+ * good evening: it is the dampener, and everything else is a nudge away from
+ * level.
+ *
+ * Level is not necessarily 0. The resting point is the day's temper, rolled
+ * once a session in `companion/temper.ts`: on a grim day the drift settles the
+ * companion in `zle` and good news has to lift them out of it; on a bright day
+ * it settles them in `dobrze` and a death only knocks them down for a while.
+ * A Mood with no `resting` behaves exactly as it did before there were days.
  *
  * The twenty minutes are twenty minutes of *playing*. Time with the client
  * closed is not charged for, because a mood that seeps away overnight is not a
@@ -40,6 +47,11 @@ export interface Mood {
   value: number;
   /** Epoch ms of the last nudge or drift step. */
   touchedAt: number;
+  /**
+   * Where the drift is pulling, -1..+1. Absent means 0, which is what every
+   * mood rested at before the day's temper existed.
+   */
+  resting?: number;
 }
 
 export function clampMood(value: number): number {
@@ -47,11 +59,21 @@ export function clampMood(value: number): number {
   return Math.min(MOOD_MAX, Math.max(MOOD_MIN, value));
 }
 
-/** `value` after `elapsedMs` of play. Pure, and unclamped in time. */
-export function decay(value: number, elapsedMs: number): number {
+/** A mood's resting point: clamped, and 0 when it has none. */
+export function restingOf(mood: Mood): number {
+  return clampMood(mood.resting ?? 0);
+}
+
+/**
+ * `value` after `elapsedMs` of play, drifting toward `resting`. Pure, and
+ * unclamped in time. What halves is the distance still to cover, so the drift
+ * keeps exactly the shape it had; only its destination moved.
+ */
+export function decay(value: number, elapsedMs: number, resting = 0): number {
   const elapsed = Math.max(0, Number.isFinite(elapsedMs) ? elapsedMs : 0);
   if (elapsed === 0) return clampMood(value);
-  return clampMood(clampMood(value) * Math.pow(0.5, elapsed / HALF_LIFE_MS));
+  const target = clampMood(resting);
+  return clampMood(target + (clampMood(value) - target) * Math.pow(0.5, elapsed / HALF_LIFE_MS));
 }
 
 /** How much play time a step from the last touch to `now` is charged for. */
@@ -61,12 +83,12 @@ export function step(mood: Mood, now: number): number {
 
 /** The mood as of `now`, with the step's drift applied. Does not mutate. */
 export function read(mood: Mood, now: number): number {
-  return decay(mood.value, step(mood, now));
+  return decay(mood.value, step(mood, now), restingOf(mood));
 }
 
 /** Charge the drift up to `now`. Returns a new Mood. */
 export function advance(mood: Mood, now: number): Mood {
-  return { value: read(mood, now), touchedAt: now };
+  return { value: read(mood, now), touchedAt: now, resting: restingOf(mood) };
 }
 
 /**
@@ -74,13 +96,26 @@ export function advance(mood: Mood, now: number): Mood {
  * touch was not spent playing.
  */
 export function hold(mood: Mood, now: number): Mood {
-  return { value: clampMood(mood.value), touchedAt: Math.max(now, mood.touchedAt) };
+  return { value: clampMood(mood.value), touchedAt: Math.max(now, mood.touchedAt), resting: restingOf(mood) };
+}
+
+/**
+ * Put the mood at `value` outright, wherever it happened to be. Dying is the
+ * only thing that does this: everything else argues with the mood, and a death
+ * ends the argument.
+ */
+export function set(mood: Mood, value: number, now: number): Mood {
+  return { value: clampMood(value), touchedAt: now, resting: restingOf(mood) };
 }
 
 /** Drift to `now`, then add `delta`, then clamp. Returns a new Mood. */
 export function nudge(mood: Mood, delta: number, now: number): Mood {
   const current = read(mood, now);
-  return { value: clampMood(current + (Number.isFinite(delta) ? delta : 0)), touchedAt: now };
+  return {
+    value: clampMood(current + (Number.isFinite(delta) ? delta : 0)),
+    touchedAt: now,
+    resting: restingOf(mood),
+  };
 }
 
 export function bucket(value: number): MoodBucket {
