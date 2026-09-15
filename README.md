@@ -231,6 +231,8 @@ client event
 | `Sprzedajesz ...` | `gulp` x0.8 - the coins, if any, land separately | `sell` | +0.05 |
 | gem valuation >= 1 mithryl (priority from 2) | `glitter` | `gemGood` | +0.10 |
 | gem valuation < 1 gold | `slump` | `gemBad` | -0.02 |
+| `gmcp.char.state.intox` (0..9) crosses into a deeper third | `sway`, scales with the stage | `intox` | +0.06, nothing at the third |
+| `gmcp.char.state.headache` (0..6) crosses into a deeper third | `wince`, scales with the stage | `hangover` | -0.08 to -0.16 |
 | no command for 5 min (configurable) | `doze` (until the next command) | `idle` | 0 |
 
 ## Idle life

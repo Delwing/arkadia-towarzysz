@@ -54,6 +54,10 @@ export type Category =
   | 'sell'
   | 'gemGood'
   | 'gemBad'
+  /** The drink going to their head. */
+  | 'intox'
+  /** The morning after it. */
+  | 'hangover'
   | 'idle';
 
 export const CATEGORIES: readonly Category[] = [
@@ -67,6 +71,8 @@ export const CATEGORIES: readonly Category[] = [
   'sell',
   'gemGood',
   'gemBad',
+  'intox',
+  'hangover',
   'idle',
 ];
 

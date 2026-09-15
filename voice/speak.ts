@@ -55,6 +55,10 @@ export const CATEGORY_RULES: Record<Category, CategoryRule> = {
   sell: { probability: 0.2, cooldownMs: 150_000 },
   gemGood: { probability: 0.7, cooldownMs: 60_000, priorityWindowMs: 600_000 },
   gemBad: { probability: 0.3, cooldownMs: 120_000 },
+  // The sources ration these by the bout, not by the line, so the cooldown here
+  // only has to stop a second remark inside one evening's drinking.
+  intox: { probability: 0.7, cooldownMs: 300_000 },
+  hangover: { probability: 0.8, cooldownMs: 600_000 },
   idle: { probability: 0.5, cooldownMs: 600_000 },
 };
 

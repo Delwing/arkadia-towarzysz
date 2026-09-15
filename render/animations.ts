@@ -47,6 +47,10 @@ function looped(name: string, t: number, durationMs: number): number {
 const WALK_MS = 3400;
 /** Long enough to be a rest rather than a stumble. */
 const REST_MS = 9000;
+/** Two full rocks: enough to read as unsteady, short enough not to become a dance. */
+const SWAY_MS = 2600;
+/** A sag with two throbs under it. */
+const WINCE_MS = 2200;
 
 /** How long one turn of the idle takes; the animator breathes on this clock. */
 export const IDLE_PERIOD_MS = sourceMs('idle') || 1400;
@@ -234,6 +238,51 @@ const SPECS = {
         return { ...base, dy: base.dy + Math.round(2 * drop), sy: 1 - 0.08 * drop, frame: framePhase('die', 0) };
       }
       return { ...base, dy: base.dy + 2, frame: framePhase('topple', span(t, DEATH_STILL, 1)) };
+    },
+  },
+  /**
+   * The drink arriving. The art is the tool's own `run_wobble` - a walk that
+   * cannot hold a line - looped for as long as the stagger lasts, with a lean
+   * of ours on top so the figure tips the way it is already lurching. `k` is
+   * how far gone they are: a sway at one, a proper lurch at three.
+   */
+  sway: {
+    durationMs: SWAY_MS,
+    priority: 2,
+    pose(t, k, base) {
+      const lean = Math.sin(2 * PI * t) * Math.min(k, 3);
+      // The feet follow the lean, late and not quite far enough, which is what
+      // makes it read as a stagger rather than a dance.
+      const feet = Math.sin(2 * PI * t - 0.7) * Math.min(k, 3);
+      return {
+        ...base,
+        dx: base.dx + Math.round(feet),
+        rot: 0.06 * lean,
+        sy: 1 - 0.02 * Math.abs(lean),
+        frame: framePhase('sway', looped('sway', t, SWAY_MS)),
+      };
+    },
+  },
+  /**
+   * The morning after: `hurt_skull`, the tool's hurt with something circling
+   * overhead, held long enough to be a headache rather than a hit. They sag,
+   * and twice something behind the eyes goes off and they tighten at it. No
+   * flash - this is not an injury, it is their own head.
+   */
+  wince: {
+    durationMs: WINCE_MS,
+    priority: 2,
+    pose(t, k, base) {
+      const sag = t < 0.25 ? easeOut(t / 0.25) : t < 0.8 ? 1 : 1 - (t - 0.8) / 0.2;
+      // Two throbs, sharp and short, under the sag.
+      const throb = Math.max(0, Math.sin(4 * PI * t)) ** 6;
+      return {
+        ...base,
+        dy: base.dy + Math.round(2 * sag),
+        sy: 1 - 0.07 * sag - 0.03 * throb,
+        rot: 0.05 * Math.min(k, 2) * throb,
+        frame: framePhase('wince', looped('wince', t, WINCE_MS)),
+      };
     },
   },
   doze: {

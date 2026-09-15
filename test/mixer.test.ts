@@ -112,7 +112,9 @@ describe('every animation against the art it plays', () => {
 
   it('runs at the speed the art was drawn at, unless it means to outlast it', () => {
     // Anything that plays once should take exactly as long as its frames say.
-    const longer = new Set<Primitive>(['walk', 'rest', 'warp']);
+    // `sway` and `wince` outlast their clips on purpose: a stagger is two rocks
+    // of the wobble, and a headache has to last longer than being hit does.
+    const longer = new Set<Primitive>(['walk', 'rest', 'warp', 'sway', 'wince']);
     for (const primitive of PRIMITIVES) {
       if (primitive === 'idle' || longer.has(primitive)) continue;
       const clip = MIXER_CLIPS[primitive] as MixerClip;

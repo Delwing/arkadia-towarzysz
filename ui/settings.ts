@@ -34,6 +34,8 @@ export const CATEGORY_LABELS: Record<Category, string> = {
   sell: 'Sprzedaz',
   gemGood: 'Cenne kamienie',
   gemBad: 'Kiepskie kamienie',
+  intox: 'Trunki',
+  hangover: 'Kac',
   idle: 'Bezczynnosc',
 };
 

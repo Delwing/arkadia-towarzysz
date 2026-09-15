@@ -168,6 +168,36 @@
           "Zasluzona przerwa.",
           "Odpoczywaj. Kronika poczeka."
         ]
+      },
+      "intox": {
+        "spokojnie": [
+          "Za twoje zdrowie. I za moje, bo go potrzebuje.",
+          "Zostaw troche na jutro.",
+          "Pachnie mocno. Pilnuje drzwi."
+        ],
+        "zle": [
+          "Pij, jesli to pomaga. Ja policze kufle.",
+          "Topisz smutki. Umieja plywac."
+        ],
+        "dobrze": [
+          "Dobry dzien na kielicha!",
+          "Nalewaj, swietowanie samo sie nie zrobi."
+        ]
+      },
+      "hangover": {
+        "spokojnie": [
+          "Woda. Duzo wody.",
+          "Mowilem, zeby zostawic troche na jutro.",
+          "Ciszej. Dla twojego dobra."
+        ],
+        "zle": [
+          "Glowa boli, sakwa pusta. Komplet.",
+          "Dzis nikogo nie zabijamy. Prosze."
+        ],
+        "dobrze": [
+          "Byla warta tego wieczoru. Chyba.",
+          "Przezyjemy. Powoli."
+        ]
       }
     }
   },
@@ -339,6 +369,36 @@
         "dobrze": [
           "Odpocznij. Zasluzone, tak, tak.",
           "Cisza. Dobra cisza."
+        ]
+      },
+      "intox": {
+        "spokojnie": [
+          "Pijesz jak rekrut przed pierwsza bitwa.",
+          "Kufel w garsci, miecz w blocie. Klasyka.",
+          "Tylko nie zasnij w rowie."
+        ],
+        "zle": [
+          "Alkohol nie naprawi twojej taktyki.",
+          "Widzialem, jak to sie konczy. Wiele razy."
+        ],
+        "dobrze": [
+          "Zasluzony kielich. Jeden.",
+          "Za zwyciestwo. I za jutrzejszy bol glowy."
+        ]
+      },
+      "hangover": {
+        "spokojnie": [
+          "A nie mowilem.",
+          "Kac to rachunek. Placisz z odsetkami.",
+          "Rozgrzewka: wstan bez jeku."
+        ],
+        "zle": [
+          "Wczoraj bohater, dzis jeczysz od swiatla.",
+          "Trzymaj sie sciany. Sciana wytrzyma."
+        ],
+        "dobrze": [
+          "Dobrze bylo, drogo wyszlo. Uczciwy uklad.",
+          "Chodz. Ruch to najlepsze lekarstwo."
         ]
       }
     }
@@ -512,6 +572,36 @@
           "Spokoj. Niech trwa, poki trwa.",
           "Cisza. Dzis laskawa."
         ]
+      },
+      "intox": {
+        "spokojnie": [
+          "Kielich pelny, pamiec pusta. Stara wymiana.",
+          "Pijesz, by nie slyszec. Ja slysze dalej.",
+          "Kazdy lyk to krok w mgle."
+        ],
+        "zle": [
+          "Trunek nie zmywa tego, co masz w srodku.",
+          "Dno kufla widzialo juz wielu takich jak ty."
+        ],
+        "dobrze": [
+          "Pij, swiat i tak zapomni. Niech zapomni wesolo.",
+          "Dzis wino jest dobre. Jutro bedzie prawda."
+        ]
+      },
+      "hangover": {
+        "spokojnie": [
+          "Rano zawsze przychodzi po zaplate.",
+          "Bol w skroniach to echo wczorajszej odwagi.",
+          "Swiatlo jest dzis okrutne. Jak zwykle."
+        ],
+        "zle": [
+          "Pilescie na umor. Umor zapamietal.",
+          "Glowa peka. Tak peka wszystko, po kolei."
+        ],
+        "dobrze": [
+          "Zaplacone. Radosc byla prawdziwa.",
+          "Przejdzie. Wszystko przechodzi."
+        ]
       }
     }
   },
@@ -660,6 +750,32 @@
         ],
         "dobrze": [
           "Spokoj."
+        ]
+      },
+      "intox": {
+        "spokojnie": [
+          "Pijesz.",
+          "Kufel.",
+          "Hm."
+        ],
+        "zle": [
+          "Znow."
+        ],
+        "dobrze": [
+          "Zdrowie."
+        ]
+      },
+      "hangover": {
+        "spokojnie": [
+          "Kac.",
+          "Woda.",
+          "Ciszej."
+        ],
+        "zle": [
+          "Mowilem."
+        ],
+        "dobrze": [
+          "Przejdzie."
         ]
       }
     }

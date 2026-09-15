@@ -24,6 +24,8 @@ const SAMPLES: Record<GameEvent['type'], GameEvent> = {
   spend: { type: 'spend' },
   sell: { type: 'sell' },
   gem: { type: 'gem', copper: GEM_GOOD_COPPER },
+  intox: { type: 'intox', level: 1 },
+  hangover: { type: 'hangover', level: 1 },
   idle: { type: 'idle' },
 };
 
@@ -152,5 +154,35 @@ describe('bindings', () => {
     expect(sell.intensity).toBeLessThan(loot.intensity);
     expect(sell.moodDelta).toBeGreaterThan(0);
     expect(sell.moodDelta).toBeLessThan(loot.moodDelta);
+  });
+});
+
+describe('drink', () => {
+  it('staggers harder the further gone they are', () => {
+    const light = resolve({ type: 'intox', level: 1 })!;
+    const heavy = resolve({ type: 'intox', level: 3 })!;
+    expect(light.primitive).toBe('sway');
+    expect(heavy.primitive).toBe('sway');
+    expect(heavy.intensity).toBeGreaterThan(light.intensity);
+    expect(resolve({ type: 'intox', level: 9 })!.intensity).toBe(resolve({ type: 'intox', level: 3 })!.intensity);
+  });
+
+  it('enjoys the first drinks and stops enjoying the last', () => {
+    expect(resolve({ type: 'intox', level: 1 })!.moodDelta).toBeGreaterThan(0);
+    expect(resolve({ type: 'intox', level: 2 })!.moodDelta).toBeGreaterThan(0);
+    expect(resolve({ type: 'intox', level: 3 })!.moodDelta).toBe(0);
+  });
+
+  it('takes the morning after harder than a drink was worth', () => {
+    const hangover = resolve({ type: 'hangover', level: 1 })!;
+    expect(hangover.primitive).toBe('wince');
+    expect(hangover.category).toBe('hangover');
+    expect(hangover.moodDelta).toBeLessThan(-resolve({ type: 'intox', level: 1 })!.moodDelta);
+  });
+  it('winces harder at a worse head', () => {
+    const dull = resolve({ type: 'hangover', level: 1 })!;
+    const awful = resolve({ type: 'hangover', level: 3 })!;
+    expect(awful.intensity).toBeGreaterThan(dull.intensity);
+    expect(awful.moodDelta).toBeLessThan(dull.moodDelta);
   });
 });

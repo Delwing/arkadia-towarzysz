@@ -439,6 +439,16 @@ function eventPanel(): HTMLDivElement {
     ),
   );
 
+  box.appendChild(
+    row(
+      button('trunek', () => fire({ type: 'intox', level: 1 })),
+      button('pijany', () => fire({ type: 'intox', level: 2 })),
+      button('zataczanie', () => fire({ type: 'intox', level: 3 })),
+      button('kac', () => fire({ type: 'hangover', level: 1 })),
+      button('kac: okrutny', () => fire({ type: 'hangover', level: 3 })),
+    ),
+  );
+
   const restraint = el('input');
   restraint.type = 'checkbox';
   restraint.checked = true;

@@ -280,6 +280,23 @@ about the client or the registry and had to bend. Each one is easy to revisit.
     deliberately quiet reaction, because when the game prints the payment it
     arrives on the next line and fires a full `loot` of its own; the sale is
     the smaller half of that pair, not a duplicate of it.
+12c. **Drink**: `Char.State.intox` and `Char.State.headache`, read the way
+    `improve` and `hp` are - numbers that move, not lines of text. The client's
+    own bars give the scales: `intox` ("UPI") is 0..9 and `headache` ("KAC")
+    0..6, both 0 by default. `intox` climbs with every sip and falls with every
+    minute, so reacting to the number would be an evening of staggering:
+    `INTOX_STAGES` and `HANGOVER_STAGES` cut each scale into three - a first
+    warmth, properly drunk, barely upright; a dull head, a bad one, the kind you
+    swear off drink over - and only an *upward* crossing is an event. Sobering
+    up, and a head wearing off all morning, are silent, and re-arm the stage they
+    left, so the next bout reacts from wherever it starts. The first frame after
+    a login or a character switch is a baseline, as it is for `improve`: logging
+    in drunk is not a drink.
+12d. **The two new animations** are baked from the tool like the rest, not drawn:
+    `sway` is its `run_wobble` (a walk that cannot hold a line) and `wince` its
+    `hurt_skull`. Both loop their clip under a longer animation of ours, the way
+    `walk` and `rest` do - a stagger is two rocks, and a headache has to outlast
+    being hit. Swapping either is one command: `yarn mixer add-anim wince base_hurt`.
 13. **Gems**: the same read-out pattern the client's `/ocenkamienie` uses.
     A stone worth reacting to starts at **1 mithryl** - gold-priced stones are
     common enough to be noise. Low is under 1 gold; in between draws nothing.

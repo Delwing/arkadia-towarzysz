@@ -23,6 +23,14 @@ export type GameEvent =
   /** Goods sold. The payment, if the game prints it, arrives separately as `loot`. */
   | { type: 'sell' }
   | { type: 'gem'; copper: number }
+  /**
+   * The drink landing. `level` is the stage of `Char.State.intox` just crossed:
+   * 1 a first warmth, 2 properly drunk, 3 barely upright. Stages, not the number
+   * itself - see `events/sources.ts`, which only reports a crossing upward.
+   */
+  | { type: 'intox'; level: number }
+  /** The head the next morning, in the same three stages, off `Char.State.headache`. */
+  | { type: 'hangover'; level: number }
   | { type: 'idle' };
 
 export type GameEventType = GameEvent['type'];
@@ -36,6 +44,8 @@ export const GAME_EVENT_TYPES: readonly GameEventType[] = [
   'spend',
   'sell',
   'gem',
+  'intox',
+  'hangover',
   'idle',
 ];
 
@@ -69,6 +79,8 @@ export const MOOD = {
   death: -0.35,
   spend: 0,
   sell: 0.05,
+  intox: 0.06,
+  hangover: -0.1,
   idle: 0,
 } as const;
 
@@ -169,6 +181,27 @@ export function resolve(event: GameEvent): Reaction | null {
         return { primitive: 'slump', intensity: 1, category: 'gemBad', moodDelta: MOOD.gemBad };
       }
       return null;
+    }
+    case 'intox': {
+      const level = Math.min(3, Math.max(1, Math.floor(event.level) || 1));
+      return {
+        primitive: 'sway',
+        intensity: clampIntensity(0.8 + (level - 1) * 0.7),
+        category: 'intox',
+        // Good company, up to a point: the third stage is where the companion
+        // stops enjoying it, so the nudge drops away rather than piling up.
+        moodDelta: level >= 3 ? 0 : MOOD.intox,
+      };
+    }
+    case 'hangover': {
+      const level = Math.min(3, Math.max(1, Math.floor(event.level) || 1));
+      return {
+        primitive: 'wince',
+        intensity: clampIntensity(0.7 + (level - 1) * 0.5),
+        category: 'hangover',
+        // Even the dull one costs more than the drink that bought it was worth.
+        moodDelta: MOOD.hangover * (0.8 + (level - 1) * 0.4),
+      };
     }
     case 'idle':
       return { primitive: 'doze', intensity: 1, category: 'idle', moodDelta: MOOD.idle };

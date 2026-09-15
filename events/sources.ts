@@ -40,6 +40,38 @@ export const SELL_PATTERNS: RegExp[] = [/^Sprzedajesz /];
  * moment, the second is the soul leaving, so only the first is the event.
  */
 export const DEATH_PATTERNS: RegExp[] = [/^Umierasz\.$/];
+/**
+ * Drink, and the head after it. Both are `Char.State` numbers and are read the
+ * way `improve` and `hp` are, not off the text. The client's own bars are the
+ * scale: `intox` ("UPI") runs 0..9 and `headache` ("KAC") 0..6, both 0 by
+ * default.
+ *
+ * Neither is cut into thirds because three is a nice number - it is because the
+ * companion has three things to say. Drunkenness: a first warmth, properly
+ * drunk, barely upright. The head: a dull one, a bad one, and the kind you
+ * swear off drink over.
+ *
+ * The reaction is to a stage being *crossed upward*, never to the number
+ * moving. `intox` ticks up with every sip and down with every minute, and a
+ * stagger per tick is an evening of staggering; sobering up is silent and
+ * re-arms the stage it fell out of, so the next bout reacts from wherever it
+ * starts.
+ */
+export const INTOX_FIELD = 'intox';
+export const HANGOVER_FIELD = 'headache';
+/** Thresholds on `intox`, 0..9. */
+export const INTOX_STAGES: readonly [number, number, number] = [1, 4, 7];
+/** Thresholds on `headache`, 0..6. */
+export const HANGOVER_STAGES: readonly [number, number, number] = [1, 3, 5];
+
+/** Which stage a reading falls in: 0 for none, 1..3 otherwise. */
+export function stageOf(value: number, stages: readonly [number, number, number]): number {
+  if (value >= stages[2]) return 3;
+  if (value >= stages[1]) return 2;
+  if (value >= stages[0]) return 1;
+  return 0;
+}
+
 /** The gem valuation read-out, same pattern the client's own `/ocenkamienie` uses. */
 export const GEM_PATTERN =
   /^(?:Wydaje ci sie, ze (?:jest|sa) wart[aye]? okolo|(?:Wydaje ci sie, ze )?[Jj]est tu \d+ sztuk wartych|Sa tu \d+ sztuki warte) ([0-9]+) mied/;
@@ -100,6 +132,13 @@ export function attachSources(api: PluginApi, handlers: SourceHandlers, options:
    * seconds later, so this is a flag and not a time window.
    */
   let deathReported = false;
+  /**
+   * The last stage of drunkenness and of headache seen. `null` in
+   * either means nothing has been read yet, so the next reading is a baseline
+   * rather than an event.
+   */
+  let lastIntoxStage: number | null = null;
+  let lastHangoverStage: number | null = null;
   let characterName: string | null = null;
   let idleHandle: unknown = null;
 
@@ -126,6 +165,12 @@ export function attachSources(api: PluginApi, handlers: SourceHandlers, options:
     lastHp = null;
   };
 
+  /** A new character's first state frame is a baseline, not a night out. */
+  const resetDrink = (): void => {
+    lastIntoxStage = null;
+    lastHangoverStage = null;
+  };
+
   const onKill = guard((payload: { killer: 'ME' | 'TEAM' | 'OTHER' }) => {
     if (payload?.killer !== 'ME') return;
     const t = now();
@@ -135,7 +180,7 @@ export function attachSources(api: PluginApi, handlers: SourceHandlers, options:
   }, onError);
 
   const onState = guard((raw: unknown) => {
-    const state = raw as { improve?: unknown; hp?: unknown } | null;
+    const state = raw as Record<string, unknown> | null;
     const improve = state?.improve;
     if (typeof improve === 'number') {
       const previous = lastImprove;
@@ -151,6 +196,25 @@ export function attachSources(api: PluginApi, handlers: SourceHandlers, options:
       // Char.State.hp is a condition index, 0 = "ledwo zywy" .. 6 = "w swietnej kondycji".
       if (previous !== null && hp < previous) handlers.onEvent({ type: 'hurt', levelsLost: previous - hp });
     }
+    const intox = state?.[INTOX_FIELD];
+    if (typeof intox === 'number') {
+      const stage = stageOf(intox, INTOX_STAGES);
+      const previous = lastIntoxStage;
+      lastIntoxStage = stage;
+      // The first reading is a baseline: logging in drunk is not a drink. After
+      // that only a deeper stage is news - the same stage again is another sip,
+      // and a shallower one is sobering up, which nobody comments on.
+      if (previous !== null && stage > previous) handlers.onEvent({ type: 'intox', level: stage });
+    }
+    const headache = state?.[HANGOVER_FIELD];
+    if (typeof headache === 'number') {
+      const stage = stageOf(headache, HANGOVER_STAGES);
+      const previous = lastHangoverStage;
+      lastHangoverStage = stage;
+      // Same rule as the drink: the head arriving is an event, and the head
+      // getting worse is another, but it ticking down all morning is not.
+      if (previous !== null && stage > previous) handlers.onEvent({ type: 'hangover', level: stage });
+    }
   }, onError);
 
   const onCharInfo = guard((raw: unknown) => {
@@ -163,6 +227,7 @@ export function attachSources(api: PluginApi, handlers: SourceHandlers, options:
       characterName = name;
       deathReported = false;
       resetBaselines();
+      resetDrink();
       handlers.onCharacter(name);
     }
   }, onError);
@@ -197,6 +262,7 @@ export function attachSources(api: PluginApi, handlers: SourceHandlers, options:
     lastCharInfoAt = -Infinity;
     deathReported = false;
     resetBaselines();
+    resetDrink();
     clearIdle();
     handlers.onDisconnect();
   }, onError);

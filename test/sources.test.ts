@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { PluginApi } from '@arkadia/plugin-types';
-import { attachSources, CHAR_INFO_SETTLE_MS, type Sources } from '../events/sources';
+import {
+  attachSources,
+  CHAR_INFO_SETTLE_MS,
+  HANGOVER_STAGES,
+  INTOX_STAGES,
+  stageOf,
+  type Sources,
+} from '../events/sources';
 import type { GameEvent } from '../events/bindings';
 import { coinsToCopper } from '../text/coins';
 
@@ -211,5 +218,111 @@ describe('detach', () => {
     expect(h.client.triggers).toEqual([]);
     h.client.emit('reset');
     expect(h.events).toEqual([]);
+  });
+});
+
+describe('drink', () => {
+  const [tipsy, drunk, gone] = INTOX_STAGES;
+  const [dull, bad, awful] = HANGOVER_STAGES;
+
+  /** A Char.State frame carrying only the fields a test cares about. */
+  const state = (fields: Record<string, unknown>) => fields;
+
+  it('cuts each of the client\'s own scales into three', () => {
+    // intox is 0..9 in the client's bar, headache 0..6; both default to 0.
+    expect(stageOf(0, INTOX_STAGES)).toBe(0);
+    expect(stageOf(tipsy, INTOX_STAGES)).toBe(1);
+    expect(stageOf(drunk, INTOX_STAGES)).toBe(2);
+    expect(stageOf(gone, INTOX_STAGES)).toBe(3);
+    expect(stageOf(9, INTOX_STAGES)).toBe(3);
+    expect(stageOf(0, HANGOVER_STAGES)).toBe(0);
+    expect(stageOf(dull, HANGOVER_STAGES)).toBe(1);
+    expect(stageOf(bad, HANGOVER_STAGES)).toBe(2);
+    expect(stageOf(6, HANGOVER_STAGES)).toBe(3);
+    expect(awful).toBeLessThanOrEqual(6);
+  });
+
+  it('takes the first reading as a baseline, so logging in drunk is not a drink', () => {
+    const h = harness();
+    h.client.emit('gmcp.char.state', state({ intox: 9, headache: 6 }));
+    expect(h.events).toEqual([]);
+  });
+
+  it('reacts when a stage is crossed, not when a sip is taken', () => {
+    const h = harness();
+    h.client.emit('gmcp.char.state', state({ intox: 0 }));
+    h.client.emit('gmcp.char.state', state({ intox: tipsy }));
+    h.client.emit('gmcp.char.state', state({ intox: tipsy + 1 }));
+    h.client.emit('gmcp.char.state', state({ intox: drunk - 1 }));
+    expect(h.events).toEqual([{ type: 'intox', level: 1 }]);
+
+    h.client.emit('gmcp.char.state', state({ intox: drunk }));
+    h.client.emit('gmcp.char.state', state({ intox: gone }));
+    expect(h.events).toEqual([
+      { type: 'intox', level: 1 },
+      { type: 'intox', level: 2 },
+      { type: 'intox', level: 3 },
+    ]);
+  });
+
+  it('says nothing about sobering up, and reacts again on the next bout', () => {
+    const h = harness();
+    h.client.emit('gmcp.char.state', state({ intox: 0 }));
+    h.client.emit('gmcp.char.state', state({ intox: drunk }));
+    h.client.emit('gmcp.char.state', state({ intox: 0 }));
+    expect(h.events).toEqual([{ type: 'intox', level: 2 }]);
+
+    h.client.emit('gmcp.char.state', state({ intox: tipsy }));
+    expect(h.events).toEqual([
+      { type: 'intox', level: 2 },
+      { type: 'intox', level: 1 },
+    ]);
+  });
+
+  it('reacts to the head arriving and to it getting worse, not to it wearing off', () => {
+    const h = harness();
+    h.client.emit('gmcp.char.state', state({ headache: 0 }));
+    h.client.emit('gmcp.char.state', state({ headache: dull }));
+    h.client.emit('gmcp.char.state', state({ headache: bad }));
+    // All morning, ticking down: silent the whole way.
+    h.client.emit('gmcp.char.state', state({ headache: bad - 1 }));
+    h.client.emit('gmcp.char.state', state({ headache: dull }));
+    h.client.emit('gmcp.char.state', state({ headache: 0 }));
+    expect(h.events).toEqual([
+      { type: 'hangover', level: 1 },
+      { type: 'hangover', level: 2 },
+    ]);
+
+    // A second morning is a second headache.
+    h.client.emit('gmcp.char.state', state({ headache: dull }));
+    expect(h.events).toHaveLength(3);
+  });
+
+  it('reads both fields off one frame', () => {
+    const h = harness();
+    h.client.emit('gmcp.char.state', state({ intox: 0, headache: 0 }));
+    h.client.emit('gmcp.char.state', state({ intox: gone, headache: awful }));
+    expect(h.events).toEqual([
+      { type: 'intox', level: 3 },
+      { type: 'hangover', level: 3 },
+    ]);
+  });
+
+  it('ignores a frame that carries neither field, and a value that is not a number', () => {
+    const h = harness();
+    h.client.emit('gmcp.char.state', state({ intox: 0, headache: 0 }));
+    h.client.emit('gmcp.char.state', state({ hp: 6 }));
+    h.client.emit('gmcp.char.state', state({ intox: 'sporo' }));
+    expect(h.events).toEqual([]);
+  });
+
+  it('starts a new character sober', () => {
+    const h = harness();
+    h.client.emit('gmcp.char.state', state({ intox: 0 }));
+    h.client.emit('gmcp.char.state', state({ intox: gone }));
+    h.client.emit('gmcp.char.info', { name: 'Ktosinny' });
+    // The first frame after the switch is that character's baseline.
+    h.client.emit('gmcp.char.state', state({ intox: gone }));
+    expect(h.events).toEqual([{ type: 'intox', level: 3 }]);
   });
 });

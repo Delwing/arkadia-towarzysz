@@ -200,7 +200,7 @@ scripts.
 - Per-companion colour comes from **recolouring the sheet once at load** on an offscreen
   canvas, keyed by the Mixer's known palette, then caching the result.
 - **Animation primitives**, each taking an intensity multiplier: `lunge`, `cheer`, `gulp`,
-  `slump`, `glitter`, `flinch`, `topple`, `doze`, plus the always-running `idle` (breathing
+  `slump`, `glitter`, `flinch`, `topple`, `doze`, `sway`, `wince`, plus the always-running `idle` (breathing
   bob, periodic blink). Intensity scaling is what lets one small set of animations cover a
   hundred scripted actions — a small coin and a huge haul are the same `gulp` at different
   amplitudes.
@@ -291,6 +291,8 @@ Rendering and UI are verified by hand in the client.
 | purchase / spend | `slump` | 1 | `spend` | `0` |
 | `stoneValue` high | `glitter` | 2.2 | `gemGood` | `+0.10` |
 | `stoneValue` low | `slump` | 1 | `gemBad` | `−0.02` |
+| `gmcp.char.state.intox` (0..9) crosses a stage | `sway` | scales with the stage | `intox` | `+0.06`, `0` at the third |
+| `gmcp.char.state.headache` (0..6) crosses a stage | `wince` | scales with the stage | `hangover` | `−0.08` .. `−0.16` |
 | no input for 5 min (configurable) | `doze` | 1 | `idle` | `0` |
 
 All of these already fire in the client; none requires new parsing.
