@@ -23,6 +23,7 @@ import {
   type Primitive,
 } from '../../companion/types';
 import { PRIMITIVES } from '../../render/animations';
+import { STANCES } from '../../events/bindings';
 import { AMBIENT_MAX_GAP_MS, AMBIENT_MIN_GAP_MS, LEVEL_SCALE } from '../../companion/ambient';
 import { Animator, PRIMITIVE_DEFS } from '../../render/animator';
 import { buildSheet, frameRect, type LoadedSheet } from '../../render/sheet';
@@ -428,12 +429,30 @@ function animationPanel(): HTMLDivElement {
       button('W prawo', () => playNow('walk', intensity)),
     ),
   );
+  // Postawy: the animator plays these again whenever nothing else is running,
+  // so they are the only way to see how a stance actually looks over time.
+  const stances = row(el('span', undefined, 'postawa'));
+  for (const stance of STANCES) {
+    stances.appendChild(
+      button(stance, () => {
+        animator.setStance(stance);
+        log(`postawa: <i>${stance}</i>`);
+      }),
+    );
+  }
+  stances.appendChild(
+    button('wstan', () => {
+      animator.setStance(null);
+      log('postawa: zadna');
+    }),
+  );
+  box.appendChild(stances);
   box.appendChild(
     el(
       'div',
       'caption',
       'Priorytet decyduje, co czego nie przerwie: doze i reakcje bija ruch wlasny (0), topple bije wszystko. ' +
-        'Znak sily to kierunek dla walk i warp.',
+        'Znak sily to kierunek dla walk i warp. Postawa wraca po kazdej reakcji, az do "wstan".',
     ),
   );
   return box;

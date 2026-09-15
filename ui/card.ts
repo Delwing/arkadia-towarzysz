@@ -37,6 +37,13 @@ export const CATEGORY_LABELS: Record<Category, string> = {
   gemBad: 'Kiepskie kamienie',
   intox: 'Trunki',
   hangover: 'Kac',
+  knowledge: 'Wiedza',
+  clear: 'Oczyszczona lokacja',
+  stun: 'Ogluszenie',
+  fishBite: 'Branie',
+  fishCatch: 'Zlowione ryby',
+  travel: 'Podroz',
+  transform: 'Przeobrazenie',
   idle: 'Bezczynnosc',
 };
 

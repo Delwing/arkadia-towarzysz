@@ -233,7 +233,27 @@ client event
 | gem valuation < 1 gold | `slump` | `gemBad` | -0.02 |
 | `gmcp.char.state.intox` (0..9) crosses into a deeper third | `sway`, scales with the stage | `intox` | +0.06, nothing at the third |
 | `gmcp.char.state.headache` (0..6) crosses into a deeper third | `wince`, scales with the stage | `hangover` | -0.08 to -0.16 |
+| `knowledgeTickEvent` - a field of knowledge grew | `glitter` | `knowledge` | +0.12 |
+| `allEnemiesKilled` after two or more of our own kills | `cheer`, scales with the group | `clear` | +0.12 |
+| `stunStart` / `stunEnd` | `stun`, held until the client says it is over | `stun` | -0.08 |
+| `fishing.state` -> `biting` | `cheer` x1.6 | `fishBite` | +0.03 |
+| `Wyciagasz zlapana rybe na powierzchnie.` | `glitter` x1.5 | `fishCatch` | +0.12 |
+| `transport.onBoard` becomes true | `sway` x0.9 | `travel` | +0.04 |
+| `player.objectNum` moves with no `reset` behind it - przeobrazenie, or it wearing off | `shift` (priority) | `transform` | +0.02 |
 | no command for 5 min (configurable) | `doze` (until the next command) | `idle` | 0 |
+
+Two of those are states rather than moments, so they leave the companion in a
+**posture** - `events/bindings.ts` calls it a stance - which they hold between
+reactions instead of standing there: `watch` for as long as the float is on the
+water, `stun` for as long as the character cannot act. A reaction cuts through
+one and hands it back when it is done; a death, a disconnect or a character
+switch ends it.
+
+Most of these are events `@arkadia/plugin-types` does not declare. The published
+`ClientEvents` is a hand-kept subset of the client's own
+`src/shared/events/clientEvents.ts` and has fallen a long way behind it, but the
+bus itself gates nothing, so `events/sources.ts` widens the types locally and
+subscribes as normal.
 
 ## Mood
 

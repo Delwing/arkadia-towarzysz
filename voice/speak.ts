@@ -59,6 +59,25 @@ export const CATEGORY_RULES: Record<Category, CategoryRule> = {
   // only has to stop a second remark inside one evening's drinking.
   intox: { probability: 0.7, cooldownMs: 300_000 },
   hangover: { probability: 0.8, cooldownMs: 600_000 },
+  // A tick of knowledge is rare - rarer than a postep - so nearly every one is
+  // worth a word. The cooldown is only there for the odd cluster.
+  knowledge: { probability: 0.7, cooldownMs: 90_000 },
+  clear: { probability: 0.2, cooldownMs: 180_000 },
+  // Being stunned is not the moment for a speech, and it repeats inside one
+  // fight; the animation carries it and the line is the rare aside.
+  stun: { probability: 0.15, cooldownMs: 240_000 },
+  // Fishing is long and quiet, so the companion may talk through more of it
+  // than they would through a fight - but a bite is every few minutes and the
+  // fish itself is the event worth a word.
+  fishBite: { probability: 0.25, cooldownMs: 180_000 },
+  fishCatch: { probability: 0.5, cooldownMs: 120_000 },
+  travel: { probability: 0.5, cooldownMs: 300_000 },
+  // Wearing somebody else's body is the rarest thing on this list, and it comes
+  // in pairs - the spell, and the spell wearing off twenty minutes later. A
+  // companion who missed it would read as a companion who is not looking, so it
+  // always speaks, and speaks through the global cooldown; the short cooldown
+  // only stops one przeobrazenie getting two lines out of the client.
+  transform: { probability: 1, cooldownMs: 20_000 },
   idle: { probability: 0.5, cooldownMs: 600_000 },
 };
 

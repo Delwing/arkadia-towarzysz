@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  CLEAR_MIN_KILLS,
   GAME_EVENT_TYPES,
   GEM_BAD_COPPER,
   GEM_GOOD_COPPER,
@@ -9,9 +10,11 @@ import {
   MAX_IMPROVE,
   PRIORITY_CATEGORIES,
   resolve,
+  STANCES,
+  stanceFor,
   type GameEvent,
 } from '../events/bindings';
-import { CATEGORIES } from '../companion/types';
+import { CATEGORIES, type Primitive } from '../companion/types';
 import { PRIMITIVES } from '../render/animations';
 import { COPPER_PER } from '../text/coins';
 
@@ -26,6 +29,12 @@ const SAMPLES: Record<GameEvent['type'], GameEvent> = {
   gem: { type: 'gem', copper: GEM_GOOD_COPPER },
   intox: { type: 'intox', level: 1 },
   hangover: { type: 'hangover', level: 1 },
+  knowledge: { type: 'knowledge' },
+  clear: { type: 'clear', count: CLEAR_MIN_KILLS },
+  stun: { type: 'stun', on: true },
+  fishing: { type: 'fishing', state: 'bite' },
+  travel: { type: 'travel' },
+  transform: { type: 'transform' },
   idle: { type: 'idle' },
 };
 
@@ -98,10 +107,11 @@ describe('bindings', () => {
     expect(resolve({ type: 'gem', copper: 2 * COPPER_PER.mithryl })!.category).toBe('gemGood');
   });
 
-  it('only a death, a niebotyczne and a two-mithryl stone are priority', () => {
+  it('only a death, a niebotyczne, a two-mithryl stone and a przeobrazenie are priority', () => {
     expect(resolve({ type: 'death' })!.priority).toBe(true);
     expect(resolve({ type: 'improve', from: 14, to: MAX_IMPROVE })!.priority).toBe(true);
     expect(resolve({ type: 'gem', copper: GEM_PRIORITY_COPPER })!.priority).toBe(true);
+    expect(resolve({ type: 'transform' })!.priority).toBe(true);
 
     // An ordinary good stone is a good stone, not an announcement.
     expect(GEM_PRIORITY_COPPER).toBe(2 * COPPER_PER.mithryl);
@@ -110,7 +120,7 @@ describe('bindings', () => {
     expect(ordinary.priority).toBe(false);
 
     for (const type of GAME_EVENT_TYPES) {
-      if (type === 'death' || type === 'improve' || type === 'gem') continue;
+      if (type === 'death' || type === 'improve' || type === 'gem' || type === 'transform') continue;
       expect(resolve(SAMPLES[type])!.priority, type).toBeFalsy();
     }
     expect(resolve({ type: 'improve', from: 5, to: 6 })!.priority).toBeFalsy();
@@ -122,6 +132,7 @@ describe('bindings', () => {
         resolve({ type: 'death' }),
         resolve({ type: 'improve', from: 14, to: MAX_IMPROVE }),
         resolve({ type: 'gem', copper: GEM_PRIORITY_COPPER }),
+        resolve({ type: 'transform' }),
       ].map((reaction) => reaction!.category),
     );
     expect([...marked].sort()).toEqual([...PRIORITY_CATEGORIES].sort());
@@ -184,5 +195,93 @@ describe('drink', () => {
     const awful = resolve({ type: 'hangover', level: 3 })!;
     expect(awful.intensity).toBeGreaterThan(dull.intensity);
     expect(awful.moodDelta).toBeLessThan(dull.moodDelta);
+  });
+
+  it('says nothing about clearing a room of one', () => {
+    // The client calls the room clear whenever the last enemy dies, which after
+    // a lone rat is every kill; the kill already had its reaction.
+    expect(resolve({ type: 'clear', count: 1 })).toBeNull();
+    expect(resolve({ type: 'clear', count: 0 })).toBeNull();
+    const group = resolve({ type: 'clear', count: CLEAR_MIN_KILLS })!;
+    expect(group.primitive).toBe('cheer');
+    expect(group.category).toBe('clear');
+    expect(resolve({ type: 'clear', count: 6 })!.intensity).toBeGreaterThan(group.intensity);
+  });
+
+  it('brightens at a tick of knowledge', () => {
+    const tick = resolve({ type: 'knowledge' })!;
+    expect(tick.primitive).toBe('glitter');
+    expect(tick.moodDelta).toBeGreaterThan(0);
+  });
+
+  it('reacts to being stunned but not to coming round', () => {
+    const stunned = resolve({ type: 'stun', on: true })!;
+    expect(stunned.primitive).toBe('stun');
+    expect(stunned.moodDelta).toBeLessThan(0);
+    expect(resolve({ type: 'stun', on: false })).toBeNull();
+  });
+
+  it('keeps its reactions to the two moments of fishing worth one', () => {
+    expect(resolve({ type: 'fishing', state: 'waiting' })).toBeNull();
+    expect(resolve({ type: 'fishing', state: 'done' })).toBeNull();
+    expect(resolve({ type: 'fishing', state: 'bite' })!.category).toBe('fishBite');
+    const caught = resolve({ type: 'fishing', state: 'catch' })!;
+    expect(caught.category).toBe('fishCatch');
+    expect(caught.moodDelta).toBeGreaterThan(resolve({ type: 'fishing', state: 'bite' })!.moodDelta);
+  });
+
+  it('sways on a deck and warps through a przeobrazenie', () => {
+    expect(resolve({ type: 'travel' })!.primitive).toBe('sway');
+    expect(resolve({ type: 'transform' })!.primitive).toBe('shift');
+  });
+});
+
+describe('stances', () => {
+  it('sits the companion down for a cast and stands them up afterwards', () => {
+    expect(stanceFor({ type: 'fishing', state: 'waiting' })).toBe('watch');
+    // The bite happens sitting down, so it leaves the sitting alone.
+    expect(stanceFor({ type: 'fishing', state: 'bite' })).toBeUndefined();
+    expect(stanceFor({ type: 'fishing', state: 'catch' })).toBeNull();
+    expect(stanceFor({ type: 'fishing', state: 'done' })).toBeNull();
+  });
+
+  it('holds a stun for as long as the client says it lasts', () => {
+    expect(stanceFor({ type: 'stun', on: true })).toBe('stun');
+    expect(stanceFor({ type: 'stun', on: false })).toBeNull();
+  });
+
+  it('ends whatever posture a death interrupted', () => {
+    expect(stanceFor({ type: 'death' })).toBeNull();
+  });
+
+  it('leaves the posture alone for everything else', () => {
+    for (const type of GAME_EVENT_TYPES) {
+      if (type === 'fishing' || type === 'stun' || type === 'death') continue;
+      expect(stanceFor(SAMPLES[type]), type).toBeUndefined();
+    }
+  });
+
+  it('only ever names an animation that exists, and never the idle', () => {
+    for (const stance of STANCES) {
+      expect(PRIMITIVES).toContain(stance);
+      expect(stance).not.toBe('idle');
+    }
+  });
+
+  it('STANCES covers every posture stanceFor can ask for', () => {
+    const asked = new Set<Primitive>();
+    const every: GameEvent[] = [
+      ...GAME_EVENT_TYPES.map((type) => SAMPLES[type]),
+      { type: 'fishing', state: 'waiting' },
+      { type: 'fishing', state: 'catch' },
+      { type: 'fishing', state: 'done' },
+      { type: 'stun', on: true },
+      { type: 'stun', on: false },
+    ];
+    for (const event of every) {
+      const stance = stanceFor(event);
+      if (stance) asked.add(stance);
+    }
+    expect([...asked].sort()).toEqual([...STANCES].sort());
   });
 });

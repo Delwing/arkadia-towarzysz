@@ -51,6 +51,34 @@ const REST_MS = 9000;
 const SWAY_MS = 2600;
 /** A sag with two throbs under it. */
 const WINCE_MS = 2200;
+/** One turn of the stun. A stance loops it, so it must not read as a twitch. */
+const STUN_MS = 1200;
+/** One seated breath. Slower than the sit was drawn: this is waiting, not fidgeting. */
+const WATCH_MS = 1800;
+/**
+ * The part of `life_rest` that is actually sitting. The clip is the whole
+ * business of getting down and up again: the figure is still on its feet
+ * through the first two frames and stands back up on the last, so a loop meant
+ * to be waiting runs between them. Looping the lot would have the companion bob
+ * up and down like a man who cannot decide.
+ */
+const SEATED_FROM = 2 / (MIXER_CLIPS.rest?.frames.length ?? 8);
+const SEATED_TO = ((MIXER_CLIPS.rest?.frames.length ?? 8) - 1) / (MIXER_CLIPS.rest?.frames.length ?? 8);
+/** Out, a beat of nothing, and back in. */
+const WARP_MS = Math.round(sourceMs('warp') * 1.8) || 2400;
+
+/**
+ * The round trip out and back. Their clip is an arrival: it opens on four empty
+ * frames, the companion appears high and small, and it settles into a stand. So
+ * the way out is the same frames backwards, and the empty end of it is the beat
+ * where they are gone - quicker than the way in, because vanishing should be.
+ * Nothing here fades or stretches them: the frames do it, and an alpha of ours
+ * on top only muddied them.
+ */
+function warpPose(t: number, base: Pose): Pose {
+  const phase = t < 0.3 ? 1 - span(t, 0, 0.3) : t < 0.46 ? 0 : span(t, 0.46, 1);
+  return { ...base, frame: framePhase('warp', phase) };
+}
 
 /** How long one turn of the idle takes; the animator breathes on this clock. */
 export const IDLE_PERIOD_MS = sourceMs('idle') || 1400;
@@ -93,6 +121,14 @@ export interface AmbientSpec {
 }
 
 export interface AnimationSpec {
+  /**
+   * The clip this animation draws, when it borrows another's art. Two things
+   * the companion does can look the same and mean different things - seeing
+   * stars is seeing stars, whether it is last night's wine or a blow to the
+   * head - and an animation that differs only in how long it runs and what
+   * ends it has no business asking for a second row on the sheet.
+   */
+  clip?: string;
   /** Absent: play the art once, at the speed it was drawn. */
   durationMs?: number;
   /** Keeps playing until `wake()`; the doze. */
@@ -285,6 +321,55 @@ const SPECS = {
       };
     },
   },
+  /**
+   * Ogluszenie: the same `hurt_skull` the hangover wears, because something
+   * going round overhead is what being stunned looks like. What differs is that
+   * this one has no clock of its own worth trusting - the companion reels for
+   * exactly as long as the client says the character cannot act, which is what
+   * a stance is for (see `Animator.setStance`). So: no sag, no throb, just a
+   * slow lean that never settles.
+   */
+  stun: {
+    clip: 'wince',
+    durationMs: STUN_MS,
+    priority: 4,
+    pose(t, k, base) {
+      const lean = Math.sin(2 * PI * t) * Math.min(k, 2);
+      return {
+        ...base,
+        dx: base.dx + Math.round(lean),
+        dy: base.dy + 1,
+        rot: 0.05 * lean,
+        sy: 0.97,
+        frame: framePhase('wince', looped('wince', t, STUN_MS)),
+      };
+    },
+  },
+  /**
+   * Sitting out a cast. A stance is entered once and left once rather than
+   * played, so this loops only the seated frames of `life_rest` and lets the
+   * getting down happen in the single frame it takes.
+   */
+  watch: {
+    clip: 'rest',
+    durationMs: WATCH_MS,
+    priority: 1,
+    pose(t, _k, base) {
+      return { ...base, frame: framePhase('rest', SEATED_FROM + (SEATED_TO - SEATED_FROM) * t) };
+    },
+  },
+  /**
+   * Przeobrazenie: the body rebuilt around you, and rebuilt again when the
+   * spell lapses. The art is the idle life's `warp` - they go and somebody
+   * comes back - but this is the client telling us the character is wearing a
+   * different body, so it cuts through the fidgeting instead of being some.
+   */
+  shift: {
+    clip: 'warp',
+    durationMs: WARP_MS,
+    priority: 3,
+    pose: (t, _k, base) => warpPose(t, base),
+  },
   doze: {
     durationMs: sourceMs('doze') || 3000,
     sustained: true,
@@ -329,20 +414,10 @@ const SPECS = {
     },
   },
   warp: {
-    // Out, a beat of nothing, and back in. The way in runs at the speed it was
-    // drawn; the way out is quicker, because vanishing should be.
-    durationMs: Math.round(sourceMs('warp') * 1.8) || 2400,
+    durationMs: WARP_MS,
     priority: 0,
     ambient: { weight: 2, intensity: () => 1 },
-    pose(t, _k, base) {
-      // Their clip is an arrival: it opens on four empty frames, the companion
-      // appears high and small, and it settles into a stand. So the way out is
-      // the same frames backwards, and the empty end of it is the beat where
-      // they are gone. Nothing here fades or stretches them - the frames do it,
-      // and an alpha of ours on top only muddied them.
-      const phase = t < 0.3 ? 1 - span(t, 0, 0.3) : t < 0.46 ? 0 : span(t, 0.46, 1);
-      return { ...base, frame: framePhase('warp', phase) };
-    },
+    pose: (t, _k, base) => warpPose(t, base),
   },
   flicker: {
     priority: 0,
@@ -380,10 +455,19 @@ const SPECS = {
 /** Every animation's name. The union comes from the table above, so it cannot drift from it. */
 export type Primitive = keyof typeof SPECS;
 
-/** Declaration order, which is also the sheet's row order. */
+/** Declaration order. */
 export const PRIMITIVES = Object.keys(SPECS) as Primitive[];
 
 export const ANIMATION_SPECS: Record<Primitive, AnimationSpec> = SPECS;
+
+/**
+ * Which of the baked clips an animation draws. Its own, unless it said
+ * otherwise: the sheet has a row per clip, not a row per animation, so the
+ * three that borrow art cost nothing on it.
+ */
+export function clipOf(primitive: Primitive): string {
+  return (SPECS[primitive] as AnimationSpec).clip ?? primitive;
+}
 
 export interface PrimitiveDef {
   durationMs: number;
@@ -406,11 +490,12 @@ export interface PrimitiveDef {
 export const ANIMATION_DEFS = Object.fromEntries(
   PRIMITIVES.map((name) => {
     const spec = SPECS[name] as AnimationSpec;
+    const clip = spec.clip ?? name;
     const def: PrimitiveDef = {
       // No duration of its own means the art's: one turn at the drawn speed.
-      durationMs: spec.durationMs ?? sourceMs(name) ?? 0,
+      durationMs: spec.durationMs ?? sourceMs(clip) ?? 0,
       priority: spec.priority,
-      pose: (t, k, base) => spec.pose(t, k, { ...base, frame: framePhase(name, t) }),
+      pose: (t, k, base) => spec.pose(t, k, { ...base, frame: framePhase(clip, t) }),
     };
     if (spec.durationMs === undefined) def.fromSource = true;
     if (spec.sustained === true) def.sustained = true;

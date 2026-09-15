@@ -119,3 +119,87 @@ describe('animator', () => {
     expect(seen).toEqual(new Set([0, 1, 2, 3]));
   });
 });
+
+describe('stances', () => {
+  it('goes back to the posture instead of standing there', () => {
+    const animator = new Animator(0);
+    animator.setStance('watch');
+    expect(animator.currentStance()).toBe('watch');
+    // Holding a posture is what they are doing, whether or not a turn of it
+    // happens to be running at the moment somebody asks.
+    expect(animator.current(0)).toBe('watch');
+    animator.pose(0);
+    expect(animator.current(0)).toBe('watch');
+    // And it is still there long after its own turn would have run out.
+    const turns = PRIMITIVE_DEFS.watch.durationMs * 10;
+    animator.pose(turns);
+    expect(animator.current(turns)).toBe('watch');
+  });
+
+  it('never shows a frame of standing between two turns of a posture', () => {
+    const animator = new Animator(0);
+    animator.setStance('watch');
+    const turn = PRIMITIVE_DEFS.watch.durationMs;
+    for (const now of [0, turn - 1, turn, turn + 1, turn * 2, turn * 2 + 1]) {
+      animator.pose(now);
+      expect(animator.current(now), String(now)).toBe('watch');
+    }
+  });
+
+  it('lets a reaction cut in and gives the posture back afterwards', () => {
+    const animator = new Animator(0);
+    animator.setStance('watch');
+    animator.pose(0);
+    expect(animator.play('cheer', 1.6, 10)).toBe(true);
+    expect(animator.current(10)).toBe('cheer');
+    const after = 10 + PRIMITIVE_DEFS.cheer.durationMs;
+    animator.pose(after);
+    expect(animator.current(after)).toBe('watch');
+  });
+
+  it('stands them up the moment the posture is left', () => {
+    const animator = new Animator(0);
+    animator.setStance('stun');
+    animator.pose(0);
+    expect(animator.current(0)).toBe('stun');
+    // Not when the reeling happens to finish a turn - now.
+    animator.setStance(null);
+    expect(animator.current(0)).toBe('idle');
+    expect(animator.currentStance()).toBeNull();
+  });
+
+  it('is not woken by activity, the way a doze is', () => {
+    const animator = new Animator(0);
+    animator.setStance('stun');
+    animator.pose(0);
+    animator.wake();
+    expect(animator.current(0)).toBe('stun');
+  });
+
+  it('holds a death through a posture, and returns to it on the respawn', () => {
+    const animator = new Animator(0);
+    animator.setStance('watch');
+    animator.pose(0);
+    animator.play('topple', 1, 100);
+    const late = 100 + PRIMITIVE_DEFS.topple.durationMs * 3;
+    animator.pose(late);
+    expect(animator.current(late)).toBe('topple');
+    animator.revive();
+    animator.pose(late);
+    expect(animator.current(late)).toBe('watch');
+  });
+
+  it('keeps the companion from fidgeting while they are holding one', () => {
+    // The idle life only starts something when they are standing idle, and a
+    // companion sitting by the water is not.
+    const animator = new Animator(0);
+    animator.setAmbientLevel('often');
+    animator.setStance('watch');
+    const seen = new Set<string>();
+    for (let now = 0; now < 600_000; now += 100) {
+      animator.pose(now);
+      seen.add(animator.current(now));
+    }
+    expect([...seen]).toEqual(['watch']);
+  });
+});

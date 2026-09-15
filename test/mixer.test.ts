@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ARCHETYPES, type Archetype, type CompanionSpec } from '../companion/types';
-import { PRIMITIVES, type Primitive } from '../render/animations';
+import { clipOf, PRIMITIVES, type Primitive } from '../render/animations';
 import {
   drawMixerPixels,
   hasMixerArt,
@@ -65,7 +65,9 @@ describe('the baked art', () => {
   });
 
   it('covers every animation the animator can play', () => {
-    for (const primitive of PRIMITIVES) expect(MIXER_CLIPS[primitive], primitive).toBeDefined();
+    // Its own row, or the row of the animation whose art it borrows: three of
+    // them differ from another only in how long they run and what ends them.
+    for (const primitive of PRIMITIVES) expect(MIXER_CLIPS[clipOf(primitive)], primitive).toBeDefined();
   });
 
   it('gives every clip its own row, and a figure to draw in it', () => {
@@ -93,7 +95,8 @@ describe('every animation against the art it plays', () => {
   it('reaches every frame of its clip, and none beyond it', () => {
     for (const primitive of PRIMITIVES) {
       if (primitive === 'idle') continue; // the animator drives that one; see animator.test.ts
-      const clip = MIXER_CLIPS[primitive];
+      if (primitive === 'watch') continue; // half a clip on purpose; its own test is below
+      const clip = MIXER_CLIPS[clipOf(primitive)];
       const def = PRIMITIVE_DEFS[primitive];
       const seen = new Set<number>();
       for (let t = 0; t <= 1; t += 0.002) {
@@ -114,17 +117,42 @@ describe('every animation against the art it plays', () => {
     // Anything that plays once should take exactly as long as its frames say.
     // `sway` and `wince` outlast their clips on purpose: a stagger is two rocks
     // of the wobble, and a headache has to last longer than being hit does.
-    const longer = new Set<Primitive>(['walk', 'rest', 'warp', 'sway', 'wince']);
+    // Every stance outlasts its clip too: a posture is held for as long as the
+    // thing it stands for lasts, and a loop that turns over three times a
+    // second reads as a twitch rather than as waiting.
+    const longer = new Set<Primitive>(['walk', 'rest', 'warp', 'sway', 'wince', 'stun', 'watch', 'shift']);
     for (const primitive of PRIMITIVES) {
       if (primitive === 'idle' || longer.has(primitive)) continue;
-      const clip = MIXER_CLIPS[primitive] as MixerClip;
+      const clip = MIXER_CLIPS[clipOf(primitive)] as MixerClip;
       expect(PRIMITIVE_DEFS[primitive].durationMs, primitive).toBe(MIXER_FRAME_MS * clip.frames.length);
     }
     // And the ones that do outlast it loop underneath rather than crawling.
     for (const primitive of longer) {
-      const clip = MIXER_CLIPS[primitive] as MixerClip;
+      const clip = MIXER_CLIPS[clipOf(primitive)] as MixerClip;
       expect(PRIMITIVE_DEFS[primitive].durationMs, primitive).toBeGreaterThan(MIXER_FRAME_MS * clip.frames.length);
     }
+  });
+
+  it('borrows art rather than asking for a row of its own', () => {
+    expect(clipOf('stun')).toBe('wince');
+    expect(clipOf('shift')).toBe('warp');
+    expect(clipOf('watch')).toBe('rest');
+    // An animation with art of its own says so by saying nothing.
+    expect(clipOf('cheer')).toBe('cheer');
+  });
+
+  it('sits the watch on the seated frames of the rest, and never stands it up', () => {
+    // `life_rest` is the whole business of getting down and up again: the
+    // figure is on its feet for the first two frames and stands back up on the
+    // last. A stance loops, so looping the lot would have the companion bob.
+    const clip = MIXER_CLIPS[clipOf('watch')] as MixerClip;
+    const seen = new Set<number>();
+    for (let t = 0; t <= 1; t += 0.002) {
+      const { phase } = PRIMITIVE_DEFS.watch.pose(t, 1, basePose()).frame;
+      seen.add(frameIndex(phase, clip.frames.length));
+    }
+    const seated = Array.from({ length: clip.frames.length - 3 }, (_, i) => i + 2);
+    expect([...seen].sort((a, b) => a - b)).toEqual(seated);
   });
 });
 

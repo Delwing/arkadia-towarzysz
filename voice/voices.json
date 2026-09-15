@@ -198,6 +198,111 @@
           "Byla warta tego wieczoru. Chyba.",
           "Przezyjemy. Powoli."
         ]
+      },
+      "knowledge": {
+        "spokojnie": [
+          "Cos ci w glowie zaskoczylo.",
+          "Zapamietaj to, przyda sie.",
+          "Madrzejesz. Powoli, ale madrzejesz."
+        ],
+        "zle": [
+          "Choc tyle dobrego dzisiaj.",
+          "Glowa pracuje, reszta nadazy."
+        ],
+        "dobrze": [
+          "O, i jeszcze to! Dobry dzien.",
+          "Ucz sie, ucz. Ja poniose."
+        ]
+      },
+      "clear": {
+        "spokojnie": [
+          "Czysto. Mozna odetchnac.",
+          "Nikt juz nie stoi. Zbieramy?",
+          "Lokacja nasza."
+        ],
+        "zle": [
+          "Chociaz tyle. Pusto.",
+          "Skonczylo sie. Usiadz na chwile."
+        ],
+        "dobrze": [
+          "Wymiotles ich, az milo.",
+          "Czysto jak po zniwach."
+        ]
+      },
+      "stun": {
+        "spokojnie": [
+          "Ogluszyli cie! Trzymaj sie.",
+          "Stoj spokojnie, zaraz przejdzie.",
+          "Nie slyszysz mnie, co?"
+        ],
+        "zle": [
+          "Tylko tego brakowalo.",
+          "Oddychaj. Ja popilnuje."
+        ],
+        "dobrze": [
+          "Otrzasnij sie, szlo tak dobrze!",
+          "Zaraz wrocisz. Zaraz."
+        ]
+      },
+      "fishBite": {
+        "spokojnie": [
+          "Bierze! Zacinaj!",
+          "Sznurek sie napial!",
+          "Jest cos na haczyku."
+        ],
+        "zle": [
+          "No wreszcie cos.",
+          "Bierze. Nie zepsuj tego."
+        ],
+        "dobrze": [
+          "Bierze, bierze! Dawaj!",
+          "O, i jeszcze ryba do kompletu."
+        ]
+      },
+      "fishCatch": {
+        "spokojnie": [
+          "Jest! Ladna sztuka.",
+          "Wyszla z wody. Do kosza z nia.",
+          "Na kolacje starczy."
+        ],
+        "zle": [
+          "Widzisz? Nie wszystko dzis stracone.",
+          "Ryba jest. Reszta sie ulozy."
+        ],
+        "dobrze": [
+          "Piekna! Pokazesz komus?",
+          "Taka ryba to swieto."
+        ]
+      },
+      "travel": {
+        "spokojnie": [
+          "Poklad chwieje sie pod nogami.",
+          "Jestesmy na pokladzie. Trzymaj sie.",
+          "Ruszamy. Usiadz, to nie bedzie krotkie."
+        ],
+        "zle": [
+          "Ruch dobrze robi. Podobno.",
+          "Moze gdzie indziej bedzie lepiej."
+        ],
+        "dobrze": [
+          "W droge! Lubie te chwile.",
+          "Nowe miejsca, nowe okazje."
+        ]
+      },
+      "transform": {
+        "spokojnie": [
+          "To... nadal ty?",
+          "Zmieniles sie. Chwile mi to zajmie.",
+          "Nowa skora. Przyzwyczaje sie."
+        ],
+        "zle": [
+          "Nie poznaje cie. I tak mi zle.",
+          "Kimkolwiek jestes, idziemy dalej."
+        ],
+        "dobrze": [
+          "Ha! Nowa twarz. Pasuje ci.",
+          "Ladna sztuczka. Naucz mnie."
+        ]
       }
     }
   },
@@ -399,6 +504,111 @@
         "dobrze": [
           "Dobrze bylo, drogo wyszlo. Uczciwy uklad.",
           "Chodz. Ruch to najlepsze lekarstwo."
+        ]
+      },
+      "knowledge": {
+        "spokojnie": [
+          "Nauczyles sie czegos. Nie zmarnuj.",
+          "Powtarzanie. Na tym to polega.",
+          "Jeszcze sto razy i moze wyjdzie."
+        ],
+        "zle": [
+          "Przynajmniej glowa cos lapie.",
+          "Ksiazki nie bija. Doceniaj."
+        ],
+        "dobrze": [
+          "Idzie ci. Nie chwal sie tylko.",
+          "O, patrzcie, mysli."
+        ]
+      },
+      "clear": {
+        "spokojnie": [
+          "Tyle z nich. Sprawdz ciala.",
+          "Wszyscy leza. Jak zwykle.",
+          "Cisza. Korzystaj."
+        ],
+        "zle": [
+          "Pusto. Jak w twojej sakiewce.",
+          "Skonczyles. Brawo, naprawde."
+        ],
+        "dobrze": [
+          "Ladna robota. Nie przyzwyczajaj sie.",
+          "Caly oddzial. Pamietam gorsze dni."
+        ]
+      },
+      "stun": {
+        "spokojnie": [
+          "Dostales w leb. Klasyka.",
+          "Stoisz jak slup. Pieknie.",
+          "Policz do trzech i wracaj."
+        ],
+        "zle": [
+          "Ogluszony i do tego bez szczescia.",
+          "Teraz? Akurat teraz?"
+        ],
+        "dobrze": [
+          "Nic to, wytrzesiesz.",
+          "Dzwoni ci w glowie? Bywa."
+        ]
+      },
+      "fishBite": {
+        "spokojnie": [
+          "Napielo sie. Zacinaj, nie spij.",
+          "Cos glupiego wzielo.",
+          "Teraz albo wcale."
+        ],
+        "zle": [
+          "Ryba ma wiecej szczescia niz ty.",
+          "Bierze. Zobaczymy, na jak dlugo."
+        ],
+        "dobrze": [
+          "Bierze. Dzis wszystko ci idzie.",
+          "Zacinaj i nie chwal sie."
+        ]
+      },
+      "fishCatch": {
+        "spokojnie": [
+          "Zlowiles. Gratuluje, rybaku.",
+          "Jedna. Do obiadu trzeba wiecej.",
+          "Nie uciekla. Rzadkosc."
+        ],
+        "zle": [
+          "Ryba wyszla dzis lepiej niz ty.",
+          "Masz ja. Ciesz sie, dopoki mozesz."
+        ],
+        "dobrze": [
+          "Dobra sztuka. Naprawde.",
+          "Widzisz? Da sie."
+        ]
+      },
+      "travel": {
+        "spokojnie": [
+          "Znowu te deski pod nogami.",
+          "Trzymaj sie czegos. Ja sie trzymam.",
+          "Podroz. Najgorsza czesc kazdej wyprawy."
+        ],
+        "zle": [
+          "Uciekamy? Rozumiem.",
+          "Bujanie do reszty zepsuje mi humor."
+        ],
+        "dobrze": [
+          "Dobry dzien na droge.",
+          "Plyniemy. Moze i cos z tego bedzie."
+        ]
+      },
+      "transform": {
+        "spokojnie": [
+          "Znowu ta maskarada.",
+          "Cialo nowe, glupota ta sama.",
+          "Poznaje cie po chodzie."
+        ],
+        "zle": [
+          "Zmieniles cialo. Szkoda, ze nie los.",
+          "I co, teraz bedzie lepiej?"
+        ],
+        "dobrze": [
+          "Niezle. Prawie cie nie poznalem.",
+          "Nowa skora. Niech sluzy."
         ]
       }
     }
@@ -602,6 +812,111 @@
           "Zaplacone. Radosc byla prawdziwa.",
           "Przejdzie. Wszystko przechodzi."
         ]
+      },
+      "knowledge": {
+        "spokojnie": [
+          "Wiedza wsiaka w ciebie jak deszcz w piach.",
+          "Kolejna nic w splocie.",
+          "Poznajesz. Cena przyjdzie pozniej."
+        ],
+        "zle": [
+          "Nawet w ciemnosci cos rosnie.",
+          "Uczysz sie. Los notuje."
+        ],
+        "dobrze": [
+          "Swiatlo w glowie, rzadki gosc.",
+          "Tak zaczynaja sie przepowiednie."
+        ]
+      },
+      "clear": {
+        "spokojnie": [
+          "Zostaly tylko ciala i cisza.",
+          "Pole nalezy do ciebie. Na chwile.",
+          "Krag sie domknal."
+        ],
+        "zle": [
+          "Smierc najadla sie za ciebie.",
+          "Puste miejsce. Zawsze sie zapelni."
+        ],
+        "dobrze": [
+          "Zwyciestwo. Ktos je gdzies zapisze.",
+          "Wymiotles ich z tego swiata."
+        ]
+      },
+      "stun": {
+        "spokojnie": [
+          "Swiat ucichl. Slyszysz tylko dzwon.",
+          "Cios odebral ci chwile.",
+          "Stoisz miedzy jednym uderzeniem a drugim."
+        ],
+        "zle": [
+          "Ciemnosc siega ci do ucha.",
+          "Czas plynie bez ciebie."
+        ],
+        "dobrze": [
+          "Otrzasnij sie. Los czeka.",
+          "To minie, jak wszystko."
+        ]
+      },
+      "fishBite": {
+        "spokojnie": [
+          "Cos z glebi odpowiedzialo.",
+          "Sznurek drzy. Woda oddaje.",
+          "Ciagna cie z drugiej strony."
+        ],
+        "zle": [
+          "Nawet woda sie nad toba ulitowala.",
+          "Bierze. Nie kazdy dar jest darem."
+        ],
+        "dobrze": [
+          "Woda jest dzis po twojej stronie.",
+          "Glebia cie wyroznila."
+        ]
+      },
+      "fishCatch": {
+        "spokojnie": [
+          "Woda oddala, co wziela.",
+          "Wyciagnales zycie z glebi.",
+          "Jedno istnienie mniej pod tafla."
+        ],
+        "zle": [
+          "Choc ryba wyszla ci na dobre.",
+          "Glebia zaplacila mala moneta."
+        ],
+        "dobrze": [
+          "Woda uznala twoja cierpliwosc.",
+          "Dar z glebi. Nie odrzucaj go."
+        ]
+      },
+      "travel": {
+        "spokojnie": [
+          "Woda niesie nas tam, gdzie chce.",
+          "Deski pod stopa, otchlan pod deskami.",
+          "Kazda droga prowadzi gdzies indziej, niz myslisz."
+        ],
+        "zle": [
+          "Uciekasz. Droga to zapamieta.",
+          "Plyniemy w strone, ktorej nie widze."
+        ],
+        "dobrze": [
+          "Wiatr sprzyja. Dzis.",
+          "Droga stoi przed toba otworem."
+        ]
+      },
+      "transform": {
+        "spokojnie": [
+          "Cialo opadlo z ciebie jak plaszcz.",
+          "Nosisz cudzy ksztalt.",
+          "Ktos inny patrzy dzis twoimi oczami."
+        ],
+        "zle": [
+          "Zmieniasz sie, a cien zostaje ten sam.",
+          "Nowa powloka nie zmyje starego."
+        ],
+        "dobrze": [
+          "Przemiana. Tak zaczynaja sie stare opowiesci.",
+          "Ksztalt sluzy ci dzis dobrze."
+        ]
       }
     }
   },
@@ -776,6 +1091,97 @@
         ],
         "dobrze": [
           "Przejdzie."
+        ]
+      },
+      "knowledge": {
+        "spokojnie": [
+          "Wiesz wiecej.",
+          "Uczysz sie.",
+          "Hm."
+        ],
+        "zle": [
+          "Cos tam."
+        ],
+        "dobrze": [
+          "Dobrze."
+        ]
+      },
+      "clear": {
+        "spokojnie": [
+          "Czysto.",
+          "Pusto.",
+          "Koniec."
+        ],
+        "zle": [
+          "Juz."
+        ],
+        "dobrze": [
+          "Dobra robota."
+        ]
+      },
+      "stun": {
+        "spokojnie": [
+          "Ogluszony.",
+          "Stoisz.",
+          "Hm."
+        ],
+        "zle": [
+          "Zle."
+        ],
+        "dobrze": [
+          "Minie."
+        ]
+      },
+      "fishBite": {
+        "spokojnie": [
+          "Bierze.",
+          "Zacinaj.",
+          "Jest."
+        ],
+        "zle": [
+          "Wreszcie."
+        ],
+        "dobrze": [
+          "Bierze!"
+        ]
+      },
+      "fishCatch": {
+        "spokojnie": [
+          "Ryba.",
+          "Masz.",
+          "Wyszla."
+        ],
+        "zle": [
+          "Chociaz tyle."
+        ],
+        "dobrze": [
+          "Ladna."
+        ]
+      },
+      "travel": {
+        "spokojnie": [
+          "Plyniemy.",
+          "Buja.",
+          "Trzymaj sie."
+        ],
+        "zle": [
+          "Znowu."
+        ],
+        "dobrze": [
+          "W droge."
+        ]
+      },
+      "transform": {
+        "spokojnie": [
+          "Kim jestes?",
+          "Zmiana.",
+          "Hm."
+        ],
+        "zle": [
+          "Znowu."
+        ],
+        "dobrze": [
+          "Ladnie."
         ]
       }
     }

@@ -15,17 +15,21 @@ zapomnienia, nigdy system, ktory czegos od ciebie chce.
   postac zawsze dostaje tego samego towarzysza, nawet po wyczyszczeniu
   przegladarki. Nie da sie go wylosowac jeszcze raz - dostajesz tego, ktory ci wypadl.
 - **Reaguje animacja na wszystko** - zabicia, postepy, obrazenia, smierc,
-  monety, zakupy, sprzedaz, ocena kamieni, bezczynnosc. Zawsze cos zrobi,
-  rzadko cos powie.
+  monety, zakupy, sprzedaz, ocena kamieni, trunki i kac, wiedza, oczyszczona
+  lokacja, ogluszenie, wedkowanie, poklad statku, przeobrazenie, bezczynnosc.
+  Zawsze cos zrobi, rzadko cos powie.
+- **Czeka razem z toba** - przy zarzuconej wedce siada obok i siedzi, dopoki
+  cos nie wezmie; ogluszony zatacza sie dokladnie tak dlugo, jak dlugo nie
+  mozesz nic zrobic. Reakcja przerwie taka postawe i odda ja z powrotem.
 - **Zyje wlasnym zyciem** - gdy nic sie nie dzieje, co pol minuty przejdzie
   sie po stopce, zamigocze albo zniknie w slupie swiatla i wroci kawalek
   dalej. Nigdy przy tym nic nie mowi i nigdy nie przerywa reakcji.
 - **Powsciagliwosc jest funkcja** - przerwa miedzy kwestiami (domyslnie 45 s),
   osobne przerwy i prawdopodobienstwa na kategorie. Przez dwadziescia zabic
   milczy, przy dwudziestym pierwszym cos rzuci. Ale na smierc, niebotyczne
-  postepy i kamien wart co najmniej 2 mithryle odezwie sie nawet w trakcie
-  przerwy - to te chwile, dla ktorych ta reakcja w ogole istnieje. Kamienie
-  przebijaja przerwe najwyzej raz na 10 minut, bo trafiaja sie workami.
+  postepy, przeobrazenie i kamien wart co najmniej 2 mithryle odezwie sie nawet
+  w trakcie przerwy - to te chwile, dla ktorych ta reakcja w ogole istnieje.
+  Kamienie przebijaja przerwe najwyzej raz na 10 minut, bo trafiaja sie workami.
 - **Cztery glosy** - Wierny giermek, Zgryzliwy weteran, Ponury wieszcz,
   Maloomowny. Glos losuje sie niezaleznie od wygladu: goblin mowiacy jak
   ponury wieszcz to dokladnie ten rodzaj pary, dla ktorego warto losowac.

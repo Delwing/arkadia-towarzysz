@@ -48,6 +48,13 @@ interface Active {
 
 export class Animator {
   private active: Active | null = null;
+  /**
+   * The posture the companion keeps between reactions: sitting out a cast,
+   * reeling from a stun. Unlike an animation it does not run out - it is played
+   * again whenever nothing else is, and it lasts until the client says the
+   * thing it stands for is over.
+   */
+  private stance: Primitive | null = null;
   /** Per-companion phase so two chips would never blink in unison. */
   private readonly phase: number;
   private readonly ambient: Ambient;
@@ -65,6 +72,23 @@ export class Animator {
   /** How often they do something of their own accord; 'off' stops it entirely. */
   setAmbientLevel(level: AmbientLevel): void {
     this.ambient.setLevel(level);
+  }
+
+  /**
+   * Put the companion in a posture, or `null` to stand them up again. A stance
+   * does not interrupt what is playing: it is what they go back to afterwards,
+   * instead of standing there. Leaving one stops it where it is rather than
+   * letting it play out its last turn.
+   */
+  setStance(primitive: Primitive | null): void {
+    const previous = this.stance;
+    this.stance = primitive;
+    if (previous !== null && previous !== primitive && this.active?.primitive === previous) this.active = null;
+  }
+
+  /** The posture they are keeping, if any. */
+  currentStance(): Primitive | null {
+    return this.stance;
   }
 
   /** Play an ambient action now, whatever the level and whatever is running. */
@@ -126,8 +150,11 @@ export class Animator {
 
   current(now: number): Primitive {
     const active = this.active;
-    if (!active) return 'idle';
-    return this.running(active, now) ? active.primitive : 'idle';
+    if (active && this.running(active, now)) return active.primitive;
+    // Between two turns of a posture they are still holding it: the next frame
+    // drawn starts the next turn, and anyone asking in the meantime should not
+    // be told the companion is standing there.
+    return this.stance ?? 'idle';
   }
 
   /** The pose to draw right now: idle breathing and blinking, plus the active primitive on top. */
@@ -139,10 +166,23 @@ export class Animator {
     // used to live here are in the frames now.
     base.frame = framePhase('idle', ((now + this.phase) % IDLE_PERIOD_MS) / IDLE_PERIOD_MS);
 
+    // Retire a finished animation before deciding what comes next, so a posture
+    // picks up where its own last turn left off instead of showing a frame of
+    // standing between every two of them.
+    const finishing = this.active;
+    if (finishing) {
+      const def = PRIMITIVE_DEFS[finishing.primitive];
+      if (!def.sustained && !def.holds && now - finishing.startedAt >= finishing.durationMs) this.active = null;
+    }
+
     // Standing idle is the only moment they are free to start something of
-    // their own; anything else playing pushes the next one further out.
+    // their own; anything else playing pushes the next one further out, and so
+    // does a posture - a companion sitting by the water is not standing idle.
     if (this.active) this.ambient.defer(now);
-    else {
+    else if (this.stance !== null) {
+      this.ambient.defer(now);
+      this.play(this.stance, 1, now);
+    } else {
       const action = this.ambient.poll(now);
       if (action) this.play(action.primitive, action.intensity, now);
     }
@@ -151,10 +191,6 @@ export class Animator {
     if (!active) return base;
     const def = PRIMITIVE_DEFS[active.primitive];
     const elapsed = now - active.startedAt;
-    if (!def.sustained && !def.holds && elapsed >= active.durationMs) {
-      this.active = null;
-      return base;
-    }
     const t = def.sustained
       ? (elapsed % active.durationMs) / active.durationMs
       : // A held animation stops on its last frame instead of ending.

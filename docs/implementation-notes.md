@@ -269,13 +269,37 @@ about the client or the registry and had to bend. Each one is easy to revisit.
    levels", with intensity and mood scaling by the number of levels lost.
 10. **Death**: the game prints `Umierasz.` and then `Oddalasz sie.`, and the
     first of those is the event - the second is the soul leaving and would only
-    double-fire. The `reset` the client's `PlayerIdentity` emits when the
-    character's object number changes is kept as a fallback for a missed line:
-    it counts as a death for a character the plugin already knows, after the
-    first Char.Info of the connection has settled, with an unchanged GMCP name
-    (so a character switch is not a death). The two are linked by a
+    double-fire. The `reset` the client's `PlayerIdentity` emits when a life
+    ends is kept as a fallback for a missed line, and the two are linked by a
     `deathReported` flag rather than a time window, because the respawn can be
     minutes after the death.
+10b. **Which body we are in** decides what that fallback means, and the client
+    says so: `player.objectNum` carries the object we are, or `undefined` while
+    that is unknown. It is not in `@arkadia/plugin-types` (see note 10d) but the
+    client has always fired it. This replaced a timing heuristic - "a `reset`
+    within 50 ms of the first Char.Info is a login, a later one is a death" -
+    with the question the client is actually answering: a reset is a **death**
+    if we were already wearing a body, and a **login** if we were not, because
+    a disconnect clears the body. A character switch is caught as before, by
+    the GMCP name having already moved on by the time the reset runs.
+10c. **Przeobrazenie** falls out of the same event for free, and is the reason
+    `player.objectNum` exists separately from `reset`. The client hands out a
+    new object id for two different reasons: a new life, which it follows with
+    `reset`, and a new body in the same life - the spell and the appearance
+    scrolls - which it follows with nothing. So the absence of a reset is the
+    signal, and `BODY_SETTLE_MS` (400 ms, generous: taking a death for a
+    transformation is the worse mistake) is how long absence takes to
+    establish. It fires twice per spell, once when it takes and once twenty
+    minutes later when it lapses, which is right - both are the companion
+    finding somebody else in front of them.
+10d. **Most of these events are undeclared.** The published `ClientEvents` is a
+    hand-maintained literal inside the client's `plugin-types/generate-types.cjs`
+    rather than anything generated from `src/shared/events/clientEvents.ts`, and
+    it carries about ninety of the client's nearly three hundred event names.
+    Nothing is gated at run time - `PluginApi.createEventsApi` hands the name
+    straight to the bus - so `events/sources.ts` declares the handful it needs
+    in an `UndeclaredEvents` interface and subscribes through a thin `listen`
+    helper. Extending the literal upstream would let that go away.
 11. **Loot**: triggers on `Bierzesz ...`, `Dostajesz ...` and `... wyplaca ci
     ... monet`, valued via `text/coins.ts` (mithryl 24000, gold 240, silver 12,
     copper 1 - the client's own deposit rates). A full-size haul is 10 gold and
@@ -315,6 +339,44 @@ about the client or the registry and had to bend. Each one is easy to revisit.
     `hurt_skull`. Both loop their clip under a longer animation of ours, the way
     `walk` and `rest` do - a stagger is two rocks, and a headache has to outlast
     being hit. Swapping either is one command: `yarn mixer add-anim wince base_hurt`.
+12e. **Knowledge, clearing a room, fishing, decks and bodies.** Five more of the
+    client's own events, all of them things it already tracks and none of them
+    needing a line of parsing:
+    - `knowledgeTickEvent` - the game's "czujesz, ze twoja wiedza ... wzrosla".
+      It carries which field grew; the companion does not use it, because the
+      voice packs are static lines and nothing interpolates yet.
+    - `allEnemiesKilled` fires whenever the last enemy in a room dies, which
+      after a lone rat is every single kill. So the source counts our own kills
+      since the last clear and reports the group size, and `CLEAR_MIN_KILLS`
+      (2) is where clearing a room stops being the kill that already reacted.
+    - `fishing.state` runs `idle -> fishing -> biting -> pulling -> idle`. Only
+      the bite is a reaction; `pulling` is the fight the bite already announced.
+      The last transition back to `idle` is the same whether the fish was landed
+      or the rod broke, so the catch is read off the one line that means it -
+      `Wyciagasz zlapana rybe na powierzchnie.`
+    - `transport.onBoard` is used and `transportDeparture` deliberately is not:
+      the two are seconds apart on the same journey, and one stagger per deck is
+      a companion at sea while two is a companion with a problem.
+    - `stunStart` / `stunEnd` are Lua gags, so the end can be missed in a busy
+      fight. `STUN_CAP_MS` (20 s) ends it anyway, and a respawn or a disconnect
+      ends it too: a companion still reeling at midnight reads as a bug.
+12f. **Stances**: a posture the companion holds *between* reactions, which is
+    what a stun and a float on the water are - states, not moments. `stanceFor`
+    in `events/bindings.ts` answers "what are they left doing", separately from
+    `resolve`'s "what do they do about it", and `Animator.setStance` plays it
+    again whenever nothing else is running. That is what makes a reaction cut
+    through a stance and hand it back afterwards, with no bookkeeping in the
+    plugin; the idle life is deferred while one is held, because a companion
+    sitting by the water is not standing idle.
+12g. **Three animations that borrow art.** `stun`, `watch` and `shift` describe
+    themselves in `render/animations.ts` like everything else, but draw a clip
+    another animation already baked - `AnimationSpec.clip` says which. Seeing
+    stars is seeing stars whether it is last night's wine (`wince`) or a blow to
+    the head (`stun`), and what differs between them is how long they run and
+    what ends them, which is not worth a second row on the sheet. `watch` loops
+    only the seated frames of `life_rest`: the clip is the whole business of
+    getting down and standing back up, and looping the lot would have the
+    companion bob. `shift` is the idle life's `warp` at a reaction's priority.
 13. **Gems**: the same read-out pattern the client's `/ocenkamienie` uses.
     A stone worth reacting to starts at **1 mithryl** - gold-priced stones are
     common enough to be noise. Low is under 1 gold; in between draws nothing.

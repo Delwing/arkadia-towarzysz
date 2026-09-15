@@ -13,8 +13,24 @@ import type { GameEvent } from './bindings';
 export const TRIGGER_TAG = 'towarzysz';
 /** Kills closer together than this count as one streak. */
 export const KILL_STREAK_WINDOW_MS = 90_000;
-/** Time the death heuristic waits after a Char.Info frame before trusting a `reset` as a death. */
-export const CHAR_INFO_SETTLE_MS = 50;
+/**
+ * How long a new object number waits to see whether a `reset` follows it.
+ *
+ * The client hands out a fresh object id for two different reasons: a new life
+ * (a login, a character switch, a death and respawn), which it announces with
+ * `reset` on the tick after the Char.Info that moved the number, and a new body
+ * in the same life - przeobrazenie and the appearance scrolls - which it
+ * announces with nothing at all. So the absence of a reset is the signal, and
+ * this is how long absence takes to establish. Generous, because the mistake it
+ * guards against - taking a death for a transformation - is the worse one.
+ */
+export const BODY_SETTLE_MS = 400;
+/**
+ * How long a stun is believed without the line that ends it. The gag that
+ * reports the end can be missed - it is one line in a fight - and a companion
+ * reeling for the rest of the evening because of it would read as a bug.
+ */
+export const STUN_CAP_MS = 20_000;
 
 /** Coin-bearing lines. Anything without "monet" in it parses to 0 copper and is ignored. */
 export const LOOT_PATTERNS: RegExp[] = [/^Bierzesz (.+)\.$/, /^Dostajesz (.+)\.$/, /wyplaca ci (.+) monet/];
@@ -72,9 +88,65 @@ export function stageOf(value: number, stages: readonly [number, number, number]
   return 0;
 }
 
+/**
+ * The fish landed. The client's fishing tracker only reports its state going
+ * back to `idle`, which is also what a broken rod and an escaped fish look
+ * like, so the one line that means the fish is out of the water is read here.
+ */
+export const FISH_CAUGHT_PATTERN = /^Wyciagasz zlapana rybe na powierzchnie\.$/;
+
 /** The gem valuation read-out, same pattern the client's own `/ocenkamienie` uses. */
 export const GEM_PATTERN =
   /^(?:Wydaje ci sie, ze (?:jest|sa) wart[aye]? okolo|(?:Wydaje ci sie, ze )?[Jj]est tu \d+ sztuk wartych|Sa tu \d+ sztuki warte) ([0-9]+) mied/;
+
+/**
+ * Events the client fires that `@arkadia/plugin-types` does not declare.
+ *
+ * The published `ClientEvents` is a hand-kept subset - a literal inside the
+ * type generator - of the client's own `src/shared/events/clientEvents.ts`,
+ * and it has fallen a long way behind it: ninety-odd names against nearly
+ * three hundred. Nothing is gated at run time, though. `api.events.on` hands
+ * the name straight to the client's bus (`PluginApi.createEventsApi`), so
+ * these work exactly like the declared ones and only the types need widening.
+ *
+ * Payloads are typed as loosely as the client actually guarantees; every
+ * reader below checks what it reads.
+ */
+interface UndeclaredEvents {
+  /**
+   * Which object in the room is us, or undefined while that is unknown - after
+   * a disconnect, or between a body swap and working the new id out.
+   */
+  'player.objectNum': number | undefined;
+  /** A field of knowledge grew. */
+  knowledgeTickEvent: { category?: unknown; dative?: unknown } | undefined;
+  /** The last enemy in the room went down. */
+  allEnemiesKilled: undefined;
+  stunStart: undefined;
+  stunEnd: undefined;
+  /** 'idle' | 'fishing' | 'biting' | 'pulling', with the cast's timestamp. */
+  'fishing.state': { state?: unknown } | undefined;
+  /** Stepped onto, or off, a ship or a coach. */
+  'transport.onBoard': boolean | undefined;
+}
+
+type UndeclaredHandler<K extends keyof UndeclaredEvents> = (payload: UndeclaredEvents[K]) => void;
+
+/** `api.events.on` for an event the typings have not caught up with. */
+function listen<K extends keyof UndeclaredEvents>(api: PluginApi, event: K, handler: UndeclaredHandler<K>): void {
+  (api.events.on as unknown as (name: string, fn: (payload?: unknown) => void) => void)(
+    event,
+    handler as (payload?: unknown) => void,
+  );
+}
+
+/** And its `off`. */
+function unlisten<K extends keyof UndeclaredEvents>(api: PluginApi, event: K, handler: UndeclaredHandler<K>): void {
+  (api.events.off as unknown as (name: string, fn: (payload?: unknown) => void) => void)(
+    event,
+    handler as (payload?: unknown) => void,
+  );
+}
 
 export interface SourceHandlers {
   onEvent(event: GameEvent): void;
@@ -124,8 +196,19 @@ export function attachSources(api: PluginApi, handlers: SourceHandlers, options:
   let killTimes: number[] = [];
   let lastImprove: number | null = null;
   let lastHp: number | null = null;
-  let charInfoFrames = 0;
-  let lastCharInfoAt = -Infinity;
+  /** The object we last knew ourselves to be; null while that is unknown. */
+  let bodyNum: number | null = null;
+  /** Whether we have worn a body at all since the last disconnect. */
+  let hadBody = false;
+  let lastResetAt = -Infinity;
+  let bodyTimer: unknown = null;
+  /** Kills since the room was last cleared, which is the size of the group. */
+  let killsSinceClear = 0;
+  let stunned = false;
+  let stunTimer: unknown = null;
+  /** The client's own fishing state, so only the changes are read. */
+  let fishingState: string | null = null;
+  let aboard = false;
   /**
    * A death we already reacted to because the game said "Umierasz.". The
    * `reset` that follows it on respawn is the same death - which may be many
@@ -163,6 +246,25 @@ export function attachSources(api: PluginApi, handlers: SourceHandlers, options:
     killTimes = [];
     lastImprove = null;
     lastHp = null;
+    killsSinceClear = 0;
+  };
+
+  const clearBodyTimer = (): void => {
+    if (bodyTimer !== null) clearTimer(bodyTimer);
+    bodyTimer = null;
+  };
+
+  const clearStunTimer = (): void => {
+    if (stunTimer !== null) clearTimer(stunTimer);
+    stunTimer = null;
+  };
+
+  /** Ends a stun, whether the game said so or the cap ran out. */
+  const endStun = (): void => {
+    clearStunTimer();
+    if (!stunned) return;
+    stunned = false;
+    handlers.onEvent({ type: 'stun', on: false });
   };
 
   /** A new character's first state frame is a baseline, not a night out. */
@@ -176,7 +278,84 @@ export function attachSources(api: PluginApi, handlers: SourceHandlers, options:
     const t = now();
     killTimes = killTimes.filter((k) => t - k <= KILL_STREAK_WINDOW_MS);
     killTimes.push(t);
+    killsSinceClear++;
     handlers.onEvent({ type: 'kill', streak: killTimes.length });
+  }, onError);
+
+  const onAllEnemiesKilled = guard(() => {
+    const count = killsSinceClear;
+    killsSinceClear = 0;
+    handlers.onEvent({ type: 'clear', count });
+  }, onError);
+
+  const onKnowledgeTick = guard(() => {
+    handlers.onEvent({ type: 'knowledge' });
+  }, onError);
+
+  const onStunStart = guard(() => {
+    clearStunTimer();
+    stunTimer = setTimer(guard(endStun, onError), STUN_CAP_MS);
+    if (stunned) return;
+    stunned = true;
+    handlers.onEvent({ type: 'stun', on: true });
+  }, onError);
+
+  const onStunEnd = guard(endStun, onError);
+
+  const onFishing = guard((payload: { state?: unknown } | undefined) => {
+    const state = payload?.state;
+    if (typeof state !== 'string' || state === fishingState) return;
+    const previous = fishingState;
+    fishingState = state;
+    if (state === 'fishing') handlers.onEvent({ type: 'fishing', state: 'waiting' });
+    // The fight with the fish is between the bite and the landing; the bite
+    // already said everything there is to say about it.
+    else if (state === 'biting') handlers.onEvent({ type: 'fishing', state: 'bite' });
+    // Back to idle from anywhere is the rod coming out of the water. Whether
+    // there was a fish on the end of it is the catch line's business, and it
+    // arrives on the same frame; this one only ends the sitting.
+    else if (state === 'idle' && previous !== null) handlers.onEvent({ type: 'fishing', state: 'done' });
+  }, onError);
+
+  const onBoard = guard((payload: boolean | undefined) => {
+    const next = payload === true;
+    if (next === aboard) return;
+    aboard = next;
+    // Only the getting on. Stepping off is not a moment, and the departure the
+    // client also reports follows the boarding by seconds - one stagger per
+    // journey is a companion on a deck, two is a companion with a problem.
+    if (next) handlers.onEvent({ type: 'travel' });
+  }, onError);
+
+  /**
+   * The object we are is a different one. Either a new life - a login, a
+   * character switch, a death and respawn - which the client follows with
+   * `reset`, or the same life in a new body, which it follows with nothing.
+   * So the verdict waits for the reset that does not come.
+   */
+  const onObjectNum = guard((payload: number | undefined) => {
+    // undefined is the gap between two bodies, not a body: the number that
+    // comes after it is the one that says what happened.
+    if (typeof payload !== 'number') return;
+    if (payload === bodyNum) return;
+    const previous = bodyNum;
+    bodyNum = payload;
+    hadBody = true;
+    // Whatever moved it, the character is standing in the room again: a
+    // companion left lying by a death gets up now.
+    handlers.onRespawn();
+    clearBodyTimer();
+    // The first body of a session is not a change of body.
+    if (previous === null) return;
+    bodyTimer = setTimer(
+      guard(() => {
+        bodyTimer = null;
+        // A reset either side of this is the client calling it a new life.
+        if (now() - lastResetAt < BODY_SETTLE_MS) return;
+        handlers.onEvent({ type: 'transform' });
+      }, onError),
+      BODY_SETTLE_MS,
+    );
   }, onError);
 
   const onState = guard((raw: unknown) => {
@@ -219,8 +398,6 @@ export function attachSources(api: PluginApi, handlers: SourceHandlers, options:
 
   const onCharInfo = guard((raw: unknown) => {
     const info = raw as { name?: unknown } | null;
-    charInfoFrames++;
-    lastCharInfoAt = now();
     const name = typeof info?.name === 'string' ? info.name.trim() : '';
     if (!name) return;
     if (name !== characterName) {
@@ -228,38 +405,50 @@ export function attachSources(api: PluginApi, handlers: SourceHandlers, options:
       deathReported = false;
       resetBaselines();
       resetDrink();
+      // Somebody else's evening: their rod, their ship, their aching head.
+      endStun();
+      fishingState = null;
+      aboard = false;
       handlers.onCharacter(name);
     }
   }, onError);
 
   /**
-   * The client fires `reset` from its PlayerIdentity when the character's object
-   * number changes: on login (before our own Char.Info listener runs, as the
-   * client's listener is older), on a character switch, and on a death and
-   * respawn. It arrives on the same tick as the very first Char.Info of a
-   * connection, or on a later tick after a respawn - and only the latter is a
-   * death for a character we already know.
+   * The client fires `reset` from its PlayerIdentity when a life ends: on
+   * login, on a character switch, and on a death and respawn. Which of those it
+   * is comes from whether we were already wearing a body - a login follows a
+   * disconnect, so we were not - and from the name, because a switch to another
+   * character has already changed it by the time this runs.
    */
   const onReset = guard(() => {
-    const t = now();
-    // Whatever else this reset means, the object number is new: a companion
-    // left lying by a death gets up now.
+    lastResetAt = now();
+    // This reset is the verdict the pending body change was waiting for.
+    clearBodyTimer();
+    // Whatever else it means, the object number is new: a companion left lying
+    // by a death gets up now.
     handlers.onRespawn();
+    endStun();
     const currentName = readGmcpName(api);
-    const knownCharacter = charInfoFrames > 0 && characterName !== null && (currentName === null || currentName === characterName);
-    const settled = t - lastCharInfoAt >= CHAR_INFO_SETTLE_MS || charInfoFrames > 1;
+    const sameCharacter = characterName !== null && (currentName === null || currentName === characterName);
+    const wasAlive = hadBody;
     resetBaselines();
     // The text trigger is the authoritative one; this reset is its respawn.
     if (deathReported) {
       deathReported = false;
       return;
     }
-    if (knownCharacter && settled) handlers.onEvent({ type: 'death' });
+    if (wasAlive && sameCharacter) handlers.onEvent({ type: 'death' });
   }, onError);
 
   const onDisconnect = guard(() => {
-    charInfoFrames = 0;
-    lastCharInfoAt = -Infinity;
+    bodyNum = null;
+    hadBody = false;
+    lastResetAt = -Infinity;
+    clearBodyTimer();
+    clearStunTimer();
+    stunned = false;
+    fishingState = null;
+    aboard = false;
     deathReported = false;
     resetBaselines();
     resetDrink();
@@ -278,6 +467,13 @@ export function attachSources(api: PluginApi, handlers: SourceHandlers, options:
   api.events.on('reset', onReset);
   api.events.on('client.disconnect', onDisconnect);
   api.events.on('command', onCommand);
+  listen(api, 'player.objectNum', onObjectNum);
+  listen(api, 'allEnemiesKilled', onAllEnemiesKilled);
+  listen(api, 'knowledgeTickEvent', onKnowledgeTick);
+  listen(api, 'stunStart', onStunStart);
+  listen(api, 'stunEnd', onStunEnd);
+  listen(api, 'fishing.state', onFishing);
+  listen(api, 'transport.onBoard', onBoard);
 
   const passThrough = (fn: (text: string) => void) =>
     guard((line: { text?: string }, matches: RegExpMatchArray) => {
@@ -334,6 +530,17 @@ export function attachSources(api: PluginApi, handlers: SourceHandlers, options:
     );
   }
   api.triggers.register(
+    FISH_CAUGHT_PATTERN,
+    (line, matches) => {
+      passThrough(() => handlers.onEvent({ type: 'fishing', state: 'catch' }))(
+        line as unknown as { text?: string },
+        matches,
+      );
+      return line;
+    },
+    TRIGGER_TAG,
+  );
+  api.triggers.register(
     GEM_PATTERN,
     (line, matches) => {
       guard(() => {
@@ -345,12 +552,15 @@ export function attachSources(api: PluginApi, handlers: SourceHandlers, options:
     TRIGGER_TAG,
   );
 
-  // Seed the character from what the client already knows, then start the idle clock.
+  // Seed the character from what the client already knows, then start the idle
+  // clock. A name here means the plugin was loaded into a session already under
+  // way, so the character is alive and wearing a body: the next `reset` is a
+  // death and not a login.
   const initialName = readGmcpName(api);
   if (initialName) {
     characterName = initialName;
-    charInfoFrames = 1;
-    lastCharInfoAt = now();
+    hadBody = true;
+    bodyNum = readGmcpObjectNum(api);
     guard(() => handlers.onCharacter(initialName), onError)();
   }
   armIdle();
@@ -358,12 +568,21 @@ export function attachSources(api: PluginApi, handlers: SourceHandlers, options:
   return {
     detach() {
       clearIdle();
+      clearBodyTimer();
+      clearStunTimer();
       api.events.off('kill', onKill);
       api.events.off('gmcp.char.state', onState);
       api.events.off('gmcp.char.info', onCharInfo);
       api.events.off('reset', onReset);
       api.events.off('client.disconnect', onDisconnect);
       api.events.off('command', onCommand);
+      unlisten(api, 'player.objectNum', onObjectNum);
+      unlisten(api, 'allEnemiesKilled', onAllEnemiesKilled);
+      unlisten(api, 'knowledgeTickEvent', onKnowledgeTick);
+      unlisten(api, 'stunStart', onStunStart);
+      unlisten(api, 'stunEnd', onStunEnd);
+      unlisten(api, 'fishing.state', onFishing);
+      unlisten(api, 'transport.onBoard', onBoard);
       try {
         api.triggers.removeByTag(TRIGGER_TAG);
       } catch (error) {
@@ -378,6 +597,16 @@ export function readGmcpName(api: PluginApi): string | null {
   try {
     const name = (api.gmcp.get() as { char?: { info?: { name?: unknown } } } | undefined)?.char?.info?.name;
     return typeof name === 'string' && name.trim() ? name.trim() : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The object we are, as the client's last Char.Info left it. */
+export function readGmcpObjectNum(api: PluginApi): number | null {
+  try {
+    const num = (api.gmcp.get() as { char?: { info?: { object_num?: unknown } } } | undefined)?.char?.info?.object_num;
+    return typeof num === 'number' ? num : null;
   } catch {
     return null;
   }

@@ -58,6 +58,20 @@ export type Category =
   | 'intox'
   /** The morning after it. */
   | 'hangover'
+  /** Something learned - the game's own "czujesz, ze twoja wiedza ... wzrosla". */
+  | 'knowledge'
+  /** The last of a group down, and the room quiet again. */
+  | 'clear'
+  /** Ogluszenie: the character cannot act, and the companion can see it. */
+  | 'stun'
+  /** A fish on the line. */
+  | 'fishBite'
+  /** And the fish out of the water. */
+  | 'fishCatch'
+  /** A deck under your feet. */
+  | 'travel'
+  /** Przeobrazenie: you are wearing somebody else. */
+  | 'transform'
   | 'idle';
 
 export const CATEGORIES: readonly Category[] = [
@@ -73,6 +87,13 @@ export const CATEGORIES: readonly Category[] = [
   'gemBad',
   'intox',
   'hangover',
+  'knowledge',
+  'clear',
+  'stun',
+  'fishBite',
+  'fishCatch',
+  'travel',
+  'transform',
   'idle',
 ];
 

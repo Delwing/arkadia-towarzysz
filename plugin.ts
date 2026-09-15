@@ -26,7 +26,7 @@ import { buildSheet, type LoadedSheet } from './render/sheet';
 import { Chip } from './ui/chip';
 import { Bubble } from './ui/bubble';
 import { AMBIENT_LABELS, buildCompanionCard, type CardHandlers, type CardView } from './ui/card';
-import { resolve, type GameEvent } from './events/bindings';
+import { resolve, stanceFor, type GameEvent } from './events/bindings';
 import { attachSources, type Sources } from './events/sources';
 import { coinsToCopper } from './text/coins';
 
@@ -155,6 +155,8 @@ class Towarzysz {
         },
         onDisconnect: () => {
           this.connected = false;
+          // Whatever they were in the middle of, it is not happening now.
+          this.animator.setStance(null);
           this.flushSave();
         },
       },
@@ -244,6 +246,7 @@ class Towarzysz {
     this.speaker.reset();
     this.speaker.setGlobalCooldown(state.settings.globalCooldownMs);
     this.animator.setAmbientLevel(state.settings.ambientLevel);
+    this.animator.setStance(null);
     this.animator.wake();
     this.applySpec();
     this.scheduleSave();
@@ -290,6 +293,10 @@ class Towarzysz {
   private handle(event: GameEvent): void {
     const state = this.state;
     if (!state) return;
+    // The posture first: some events change only that, and a reaction of their
+    // own would be a second thing happening where there was one.
+    const stance = stanceFor(event);
+    if (stance !== undefined) this.animator.setStance(stance);
     const reaction = resolve(event);
     if (!reaction) return;
     const now = Date.now();

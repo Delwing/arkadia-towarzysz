@@ -2,10 +2,11 @@ import { describe, expect, it } from 'vitest';
 import type { PluginApi } from '@arkadia/plugin-types';
 import {
   attachSources,
-  CHAR_INFO_SETTLE_MS,
+  BODY_SETTLE_MS,
   HANGOVER_STAGES,
   INTOX_STAGES,
   stageOf,
+  STUN_CAP_MS,
   type Sources,
 } from '../events/sources';
 import type { GameEvent } from '../events/bindings';
@@ -67,12 +68,16 @@ interface Harness {
   advance(ms: number): void;
 }
 
-function harness(characterName: string | null = 'Delwing'): Harness {
+function harness(characterName: string | null = 'Delwing', objectNum: number | null = 101): Harness {
   const client = new FakeClient();
-  if (characterName) client.gmcpData = { char: { info: { name: characterName } } };
+  if (characterName) client.gmcpData = { char: { info: { name: characterName, object_num: objectNum } } };
   const events: GameEvent[] = [];
   const counted = { respawns: 0 };
   let clock = 1_000_000;
+  // Fake timers: `advance` moves the clock and fires whatever came due, which
+  // is how the body-change verdict and the stun cap are exercised.
+  let nextHandle = 1;
+  const timers = new Map<number, { at: number; fn: () => void }>();
   const sources = attachSources(
     client.api,
     {
@@ -88,8 +93,14 @@ function harness(characterName: string | null = 'Delwing'): Harness {
       idleMs: () => 0, // no idle timer in these tests
       coinsToCopper,
       now: () => clock,
-      setTimer: () => null,
-      clearTimer: () => undefined,
+      setTimer: (fn, ms) => {
+        const handle = nextHandle++;
+        timers.set(handle, { at: clock + ms, fn });
+        return handle;
+      },
+      clearTimer: (handle) => {
+        timers.delete(handle as number);
+      },
       onError: (error) => {
         throw error;
       },
@@ -104,16 +115,23 @@ function harness(characterName: string | null = 'Delwing'): Harness {
     },
     advance(ms: number) {
       clock += ms;
+      for (const [handle, timer] of [...timers]) {
+        if (timer.at > clock) continue;
+        timers.delete(handle);
+        timer.fn();
+      }
     },
   };
 }
 
 describe('respawn', () => {
   it('reports every reset, because each one is a new object number', () => {
-    const h = harness();
+    // Nobody logged in yet, so the first reset is a login rather than a death.
+    const h = harness(null, null);
     expect(h.respawns).toBe(0);
     h.client.emit('reset', undefined);
     expect(h.respawns).toBe(1);
+    h.client.emit('gmcp.char.info', { name: 'Delwing' });
     // Including the one that follows a death we already reported: that reset is
     // the respawn, and it is what puts the companion back on their feet.
     h.client.line('Umierasz.');
@@ -142,10 +160,29 @@ describe('death', () => {
   });
 
   it('still falls back to the reset heuristic when no line was seen', () => {
+    // The plugin attached into a session already under way, so the character
+    // was alive and wearing a body: a reset can only be the end of that life.
     const h = harness();
-    h.advance(CHAR_INFO_SETTLE_MS + 1);
     h.client.emit('reset');
     expect(h.events).toEqual([{ type: 'death' }]);
+  });
+
+  it('does not take a login for a death', () => {
+    // Nobody home yet: no name, no body, and the reset that arrives is the
+    // client starting a life rather than ending one.
+    const h = harness(null, null);
+    h.client.emit('reset');
+    expect(h.events).toEqual([]);
+    expect(h.respawns).toBe(1);
+  });
+
+  it('does not take a character switch for a death', () => {
+    const h = harness();
+    // The client sets the new character before it fires the reset, so by the
+    // time we are asked, gmcp already names somebody else.
+    h.client.gmcpData = { char: { info: { name: 'Ktosinny', object_num: 303 } } };
+    h.client.emit('reset');
+    expect(h.events).toEqual([]);
   });
 
   it('treats a second death as its own', () => {
@@ -324,5 +361,230 @@ describe('drink', () => {
     // The first frame after the switch is that character's baseline.
     h.client.emit('gmcp.char.state', state({ intox: gone }));
     expect(h.events).toEqual([{ type: 'intox', level: 3 }]);
+  });
+});
+
+describe('bodies', () => {
+  it('reads a new object number with no reset behind it as a przeobrazenie', () => {
+    const h = harness();
+    // The client drops the id while it works out which object in the room we
+    // have become, then hands the new one over.
+    h.client.emit('player.objectNum', undefined);
+    h.client.emit('player.objectNum', 202);
+    expect(h.events).toEqual([]);
+    h.advance(BODY_SETTLE_MS);
+    expect(h.events).toEqual([{ type: 'transform' }]);
+    // And again when the spell lapses and the old body comes back.
+    h.client.emit('player.objectNum', 101);
+    h.advance(BODY_SETTLE_MS);
+    expect(h.events).toEqual([{ type: 'transform' }, { type: 'transform' }]);
+  });
+
+  it('reads one with a reset behind it as a new life, not a new body', () => {
+    const h = harness();
+    // A death moves the number first and explains itself a tick later.
+    h.client.emit('player.objectNum', 202);
+    h.client.emit('reset');
+    h.advance(BODY_SETTLE_MS * 4);
+    expect(h.events).toEqual([{ type: 'death' }]);
+  });
+
+  it('reads a login the same way round, reset first', () => {
+    const h = harness(null, null);
+    h.client.emit('reset');
+    h.client.emit('player.objectNum', 101);
+    h.advance(BODY_SETTLE_MS * 4);
+    expect(h.events).toEqual([]);
+  });
+
+  it('does not call the first body of a session a change of body', () => {
+    const h = harness(null, null);
+    h.client.emit('player.objectNum', 101);
+    h.advance(BODY_SETTLE_MS * 4);
+    expect(h.events).toEqual([]);
+    expect(h.respawns).toBe(1);
+  });
+
+  it('gets the companion up whenever the object number moves', () => {
+    const h = harness();
+    h.client.line('Umierasz.');
+    expect(h.respawns).toBe(0);
+    h.client.emit('player.objectNum', 202);
+    expect(h.respawns).toBe(1);
+  });
+
+  it('ignores the client re-identifying the same body', () => {
+    const h = harness();
+    h.client.emit('player.objectNum', 101);
+    h.client.emit('player.objectNum', undefined);
+    h.client.emit('player.objectNum', 101);
+    h.advance(BODY_SETTLE_MS * 4);
+    expect(h.events).toEqual([]);
+    expect(h.respawns).toBe(0);
+  });
+
+  it('forgets the body on a disconnect, so the next login is not a death', () => {
+    const h = harness();
+    h.client.emit('client.disconnect');
+    h.client.emit('reset');
+    expect(h.events).toEqual([]);
+  });
+});
+
+describe('clearing a room', () => {
+  it('counts the group, and leaves a room cleared of one to the kill itself', () => {
+    const h = harness();
+    h.client.emit('kill', { killer: 'ME' });
+    h.client.emit('allEnemiesKilled');
+    expect(h.events).toEqual([
+      { type: 'kill', streak: 1 },
+      { type: 'clear', count: 1 },
+    ]);
+  });
+
+  it('counts the kills since the room was last cleared', () => {
+    const h = harness();
+    for (let i = 0; i < 3; i++) h.client.emit('kill', { killer: 'ME' });
+    h.client.emit('allEnemiesKilled');
+    expect(h.events.at(-1)).toEqual({ type: 'clear', count: 3 });
+    // The next group starts from nothing.
+    h.client.emit('kill', { killer: 'ME' });
+    h.client.emit('allEnemiesKilled');
+    expect(h.events.at(-1)).toEqual({ type: 'clear', count: 1 });
+  });
+
+  it('reports nothing to react to when the client says it twice', () => {
+    // The client re-checks the room on every `parsedNums`, so one cleared room
+    // can announce itself more than once; the second has no kills behind it.
+    const h = harness();
+    h.client.emit('kill', { killer: 'ME' });
+    h.client.emit('kill', { killer: 'ME' });
+    h.client.emit('allEnemiesKilled');
+    h.client.emit('allEnemiesKilled');
+    expect(h.events.at(-2)).toEqual({ type: 'clear', count: 2 });
+    expect(h.events.at(-1)).toEqual({ type: 'clear', count: 0 });
+  });
+
+  it('counts only the kills that were ours', () => {
+    const h = harness();
+    h.client.emit('kill', { killer: 'ME' });
+    h.client.emit('kill', { killer: 'OTHER' });
+    h.client.emit('allEnemiesKilled');
+    expect(h.events.at(-1)).toEqual({ type: 'clear', count: 1 });
+  });
+});
+
+describe('stun', () => {
+  it('starts and ends with the gags the client fires', () => {
+    const h = harness();
+    h.client.emit('stunStart');
+    h.client.emit('stunEnd');
+    expect(h.events).toEqual([
+      { type: 'stun', on: true },
+      { type: 'stun', on: false },
+    ]);
+  });
+
+  it('reports one stun however many times the line fires', () => {
+    const h = harness();
+    h.client.emit('stunStart');
+    h.client.emit('stunStart');
+    expect(h.events).toEqual([{ type: 'stun', on: true }]);
+  });
+
+  it('ends on its own when the line that would end it is missed', () => {
+    const h = harness();
+    h.client.emit('stunStart');
+    h.advance(STUN_CAP_MS);
+    expect(h.events).toEqual([
+      { type: 'stun', on: true },
+      { type: 'stun', on: false },
+    ]);
+    // And the end that finally arrives does not report a second one.
+    h.client.emit('stunEnd');
+    expect(h.events).toHaveLength(2);
+  });
+
+  it('keeps the cap fresh while the stun is being renewed', () => {
+    const h = harness();
+    h.client.emit('stunStart');
+    h.advance(STUN_CAP_MS - 1);
+    h.client.emit('stunStart');
+    h.advance(STUN_CAP_MS - 1);
+    expect(h.events).toEqual([{ type: 'stun', on: true }]);
+  });
+
+  it('ignores an end with no stun behind it', () => {
+    const h = harness();
+    h.client.emit('stunEnd');
+    expect(h.events).toEqual([]);
+  });
+
+  it('does not leave the companion reeling through a respawn', () => {
+    const h = harness();
+    h.client.emit('stunStart');
+    h.client.emit('reset');
+    expect(h.events).toContainEqual({ type: 'stun', on: false });
+  });
+});
+
+describe('fishing', () => {
+  it('follows the client state through a catch', () => {
+    const h = harness();
+    h.client.emit('fishing.state', { state: 'idle' });
+    h.client.emit('fishing.state', { state: 'fishing' });
+    h.client.emit('fishing.state', { state: 'biting' });
+    h.client.emit('fishing.state', { state: 'pulling' });
+    h.client.emit('fishing.state', { state: 'idle' });
+    h.client.line('Wyciagasz zlapana rybe na powierzchnie.');
+    expect(h.events).toEqual([
+      { type: 'fishing', state: 'waiting' },
+      { type: 'fishing', state: 'bite' },
+      { type: 'fishing', state: 'done' },
+      { type: 'fishing', state: 'catch' },
+    ]);
+  });
+
+  it('ends the sitting when the rod comes out with nothing on it', () => {
+    const h = harness();
+    h.client.emit('fishing.state', { state: 'fishing' });
+    h.client.emit('fishing.state', { state: 'idle' });
+    expect(h.events).toEqual([
+      { type: 'fishing', state: 'waiting' },
+      { type: 'fishing', state: 'done' },
+    ]);
+  });
+
+  it('ignores a state that has not changed, and one that is not a state', () => {
+    const h = harness();
+    h.client.emit('fishing.state', { state: 'fishing' });
+    h.client.emit('fishing.state', { state: 'fishing' });
+    h.client.emit('fishing.state', {});
+    h.client.emit('fishing.state', undefined);
+    expect(h.events).toEqual([{ type: 'fishing', state: 'waiting' }]);
+  });
+});
+
+describe('transport', () => {
+  it('reacts to getting on board, and not to getting off', () => {
+    const h = harness();
+    h.client.emit('transport.onBoard', true);
+    h.client.emit('transport.onBoard', false);
+    expect(h.events).toEqual([{ type: 'travel' }]);
+  });
+
+  it('does not react twice to the same deck', () => {
+    const h = harness();
+    h.client.emit('transport.onBoard', true);
+    h.client.emit('transport.onBoard', true);
+    expect(h.events).toEqual([{ type: 'travel' }]);
+  });
+});
+
+describe('knowledge', () => {
+  it('reports a tick, whatever it was about', () => {
+    const h = harness();
+    h.client.emit('knowledgeTickEvent', { category: 'walka', dative: 'walce' });
+    expect(h.events).toEqual([{ type: 'knowledge' }]);
   });
 });
