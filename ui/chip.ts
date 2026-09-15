@@ -1,7 +1,17 @@
 /**
- * The footer chip: a small canvas with the companion, their name and the mood
- * label. Runs the render loop; asks the animator for a pose each frame and
- * draws either the sprite sheet frame or the procedural fallback figure.
+ * The footer chip: a small canvas with the companion and their name. Runs the
+ * render loop; asks the animator for a pose each frame and draws either the
+ * sprite sheet frame or the procedural fallback figure.
+ *
+ * The chip claims only as much room in the footer as that one line of text -
+ * the same height the client's other chips take. The canvas is taller than
+ * that, so it is taken out of the flow and left to overflow upwards out of the
+ * footer: the companion is drawn whole, nothing is clipped, and the footer row
+ * does not grow around them.
+ *
+ * The same class, at a bigger scale and with the text and the overflow turned
+ * off, is the portrait on the companion's card - one renderer, so the card
+ * cannot drift away from what the footer shows.
  */
 
 import type { CompanionSpec } from '../companion/types';
@@ -17,27 +27,46 @@ export const CANVAS_W = 26;
 export const CANVAS_H = 28;
 /** CSS pixels per sprite pixel. */
 export const PIXEL_SCALE = 1.5;
+/** The canvas in CSS pixels - the box the companion is drawn in, flow or not. */
+export const SPRITE_W = CANVAS_W * PIXEL_SCALE;
+export const SPRITE_H = CANVAS_H * PIXEL_SCALE;
 
 export interface ChipOptions {
   onClick?: () => void;
   animator: Animator;
+  /** CSS pixels per sprite pixel. Defaults to the footer's `PIXEL_SCALE`. */
+  scale?: number;
+  /** The name beside the companion. Off for a portrait, which is under one. */
+  label?: boolean;
+  /**
+   * Whether the canvas hangs out of the flow (the footer, where there is no
+   * height to spare) or takes its own room (a card, where there is).
+   */
+  float?: boolean;
 }
 
 export class Chip {
   readonly element: HTMLSpanElement;
   private readonly canvas: HTMLCanvasElement;
   private readonly nameEl: HTMLSpanElement;
-  private readonly moodEl: HTMLSpanElement;
   private ctx: CanvasRenderingContext2D | null;
   private sheet: LoadedSheet | null = null;
   private frame: number | null = null;
   /** 0 until the first `resizeBacking`, which is what forces that first sizing. */
   private dpr = 0;
   private readonly animator: Animator;
+  private readonly scale: number;
+  /** Only a chip you can click says so in its tooltip. */
+  private readonly clickable: boolean;
   private visible = true;
 
   constructor(options: ChipOptions) {
     this.animator = options.animator;
+    this.scale = options.scale ?? PIXEL_SCALE;
+    this.clickable = Boolean(options.onClick);
+    const float = options.float !== false;
+    const width = CANVAS_W * this.scale;
+    const height = CANVAS_H * this.scale;
 
     const root = document.createElement('span');
     root.className = 'towarzysz-chip';
@@ -48,7 +77,8 @@ export class Chip {
     root.style.verticalAlign = 'middle';
     root.style.cursor = options.onClick ? 'pointer' : 'default';
     root.style.userSelect = 'none';
-    root.title = 'Towarzysz - kliknij, zeby otworzyc ustawienia';
+    root.style.overflow = 'visible';
+    root.title = this.clickable ? 'Towarzysz - kliknij, zeby zobaczyc karte' : 'Towarzysz';
     if (options.onClick) {
       root.addEventListener('click', (event) => {
         event.preventDefault();
@@ -56,54 +86,70 @@ export class Chip {
       });
     }
 
+    // The slot is what the footer measures: the canvas's width, but only the
+    // height the chip's text asks for (`stretch` takes the row's height, it
+    // does not set it). The canvas hangs inside it, its feet on the slot's
+    // bottom edge, the rest of the figure standing above the footer line.
+    const slot = document.createElement('span');
+    slot.className = 'towarzysz-chip__slot';
+    slot.style.position = 'relative';
+    slot.style.display = 'block';
+    slot.style.flex = '0 0 auto';
+    slot.style.width = `${width}px`;
+    // Not floating: the slot is simply the canvas's box.
+    if (float) slot.style.alignSelf = 'stretch';
+    else slot.style.height = `${height}px`;
+
     const canvas = document.createElement('canvas');
-    canvas.style.width = `${CANVAS_W * PIXEL_SCALE}px`;
-    canvas.style.height = `${CANVAS_H * PIXEL_SCALE}px`;
+    if (float) {
+      canvas.style.position = 'absolute';
+      canvas.style.left = '0';
+      canvas.style.bottom = '0';
+    }
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
     canvas.style.imageRendering = 'pixelated';
     canvas.style.display = 'block';
+    slot.appendChild(canvas);
     this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
 
-    const text = document.createElement('span');
-    text.style.display = 'inline-flex';
-    text.style.flexDirection = 'column';
-    text.style.lineHeight = '1.1';
-    text.style.fontSize = '10px';
-
+    // The name, on one line, and nothing else: the mood is on the card, where
+    // there is room to say it properly. In the footer it was a second word
+    // nobody reads, and for a while a second line the whole row had to grow for.
     const name = document.createElement('span');
     name.className = 'towarzysz-chip__name';
     name.style.fontWeight = '600';
+    name.style.lineHeight = '1.1';
+    name.style.fontSize = '11px';
     name.textContent = '...';
-    const mood = document.createElement('span');
-    mood.className = 'towarzysz-chip__mood';
-    mood.style.fontSize = '8px';
-    mood.style.opacity = '0.75';
-    mood.textContent = '';
 
-    text.appendChild(name);
-    text.appendChild(mood);
-    root.appendChild(canvas);
-    root.appendChild(text);
+    root.appendChild(slot);
+    if (options.label !== false) root.appendChild(name);
 
     this.element = root;
     this.nameEl = name;
-    this.moodEl = mood;
     this.resizeBacking();
+  }
+
+  /**
+   * What a bubble should hang above: the canvas, not the chip. The chip's own
+   * box now stops at the text, and a bubble placed above that would cover the
+   * companion's head.
+   */
+  get anchor(): HTMLElement {
+    return this.canvas;
   }
 
   setSpec(spec: CompanionSpec | null): void {
     this.nameEl.textContent = spec ? spec.name : '...';
     this.element.title = spec
-      ? `${spec.name} - towarzysz. Kliknij, zeby otworzyc ustawienia.`
+      ? `${spec.name} - towarzysz.${this.clickable ? ' Kliknij, zeby zobaczyc karte.' : ''}`
       : 'Towarzysz czeka na imie postaci.';
   }
 
   setSheet(sheet: LoadedSheet | null): void {
     this.sheet = sheet;
-  }
-
-  setMoodLabel(label: string): void {
-    this.moodEl.textContent = label;
   }
 
   setVisible(visible: boolean): void {
@@ -131,7 +177,7 @@ export class Chip {
     const ctx = this.ctx;
     if (!ctx) return;
     this.resizeBacking();
-    const unit = PIXEL_SCALE * this.dpr;
+    const unit = this.scale * this.dpr;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     ctx.imageSmoothingEnabled = false;
@@ -255,8 +301,8 @@ export class Chip {
 
   private resizeBacking(): void {
     const dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
-    const width = Math.round(CANVAS_W * PIXEL_SCALE * dpr);
-    const height = Math.round(CANVAS_H * PIXEL_SCALE * dpr);
+    const width = Math.round(CANVAS_W * this.scale * dpr);
+    const height = Math.round(CANVAS_H * this.scale * dpr);
     // Compare against the backing store, not against `this.dpr`: on a 1x
     // display those matched from the start and the canvas kept its default
     // 300x150 backing, which CSS then squeezed into 39x30.
@@ -272,7 +318,9 @@ export class Chip {
   private tick = (now: number): void => {
     this.frame = null;
     try {
-      if (this.visible) this.render(now);
+      // A card that has been torn out of the document still holds its chip;
+      // drawing into a canvas nobody can see is the one frame worth skipping.
+      if (this.visible && this.element.isConnected) this.render(now);
     } catch {
       // A drawing error must not stop the loop - the next frame may be fine.
     }

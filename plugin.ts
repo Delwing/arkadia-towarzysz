@@ -6,7 +6,8 @@
  * something in a speech bubble above the footer. Has a mood that drifts with
  * how the session goes. Has no needs, cannot be neglected, cannot die.
  *
- * `/towarzysz` opens the settings; `/towarzysz cisza` toggles the global mute.
+ * `/towarzysz` opens the companion's card; `/towarzysz cisza` toggles the
+ * global mute. There is nothing to configure: the card only shows them.
  *
  * Everything user-facing is ASCII-folded Polish, like the rest of the client.
  * Nothing here is allowed to throw into the client's event loop: every
@@ -15,16 +16,16 @@
 
 import type { PluginApi, PluginInfo } from '@arkadia/plugin-types';
 
-import type { AmbientLevel, Category, PersistedState } from './companion/types';
-import { bucket, bucketLabel, nudge, read as readMood } from './companion/mood';
-import { load, pickStorage, reroll, save, type KeyValueStorage } from './companion/state';
+import type { Category, PersistedState } from './companion/types';
+import { advance, bucket, bucketLabel, hold, nudge } from './companion/mood';
+import { load, pickStorage, save, type KeyValueStorage } from './companion/state';
 import { VOICES, voiceName } from './voice/catalog';
 import { Speaker } from './voice/speak';
 import { Animator } from './render/animator';
-import { buildSheet } from './render/sheet';
+import { buildSheet, type LoadedSheet } from './render/sheet';
 import { Chip } from './ui/chip';
 import { Bubble } from './ui/bubble';
-import { AMBIENT_LABELS, buildSettingsPanel, type SettingsHandlers, type SettingsView } from './ui/settings';
+import { AMBIENT_LABELS, buildCompanionCard, type CardHandlers, type CardView } from './ui/card';
 import { resolve, type GameEvent } from './events/bindings';
 import { attachSources, type Sources } from './events/sources';
 import { coinsToCopper } from './text/coins';
@@ -37,9 +38,19 @@ const PLUGIN_DESCRIPTION =
   "Sterowanie: /towarzysz. Grafika: wlasne pikselowe sprite'y.";
 
 const FOOTER_ID = 'towarzysz';
-const POPUP_ID = 'towarzysz-ustawienia';
+const POPUP_ID = 'towarzysz-karta';
+/** The card's portrait: the footer's companion, drawn big enough to look at. */
+const PORTRAIT_SCALE = 4;
 const SAVE_DEBOUNCE_MS = 500;
-const MOOD_LABEL_REFRESH_MS = 30_000;
+const CARD_REFRESH_MS = 30_000;
+/**
+ * How often the mood is charged for its drift. The mood drifts only while the
+ * client is connected (see `companion/mood.ts`), which means somebody has to
+ * tell it that time is passing; this is that somebody. It is short enough that
+ * even a background tab's throttled timer - once a minute, in Chrome - lands
+ * inside a single chargeable step.
+ */
+const MOOD_TICK_MS = 20_000;
 
 /**
  * The animator runs on the requestAnimationFrame clock (performance.now()),
@@ -82,6 +93,13 @@ class Towarzysz {
   private readonly speaker: Speaker;
   private readonly animator: Animator;
   private readonly chip: Chip;
+  /**
+   * The card's portrait. Built once, on the first card, and re-parented into
+   * every rebuild: it is the same animator and the same sheet as the footer's,
+   * so re-creating it per rebuild would only throw away a warm canvas.
+   */
+  private portrait: Chip | null = null;
+  private sheet: LoadedSheet | null = null;
   private readonly bubble: Bubble;
   private readonly footer: ReturnType<PluginApi['ui']['registerFooterComponent']>;
   private sources: Sources | null = null;
@@ -92,7 +110,14 @@ class Towarzysz {
   private characterName: string | null = null;
   private state: PersistedState | null = null;
   private saveTimer: ReturnType<typeof setTimeout> | null = null;
-  private labelTimer: ReturnType<typeof setInterval> | null = null;
+  private cardTimer: ReturnType<typeof setInterval> | null = null;
+  private moodTimer: ReturnType<typeof setInterval> | null = null;
+  /**
+   * Whether the client is in the game. The mood drifts only while it is, so a
+   * companion left at a dropped connection keeps the mood the session ended
+   * on rather than cooling off in an empty room.
+   */
+  private connected = false;
   private sheetWarned = false;
 
   constructor(api: PluginApi) {
@@ -100,15 +125,17 @@ class Towarzysz {
     this.storage = pickStorage();
     this.speaker = new Speaker();
     this.animator = new Animator(Date.now());
-    this.chip = new Chip({ animator: this.animator, onClick: () => void this.openSettings() });
+    this.chip = new Chip({ animator: this.animator, onClick: () => void this.openCard() });
     this.bubble = new Bubble();
 
     // The registry clones a Node it is handed, so the chip is appended into
     // the plugin-owned span after registration instead of being passed in.
     this.footer = api.ui.registerFooterComponent(FOOTER_ID, '', 'end');
+    // The companion is drawn taller than the footer row and overflows upwards;
+    // the handle's own span must not be the thing that cuts them off.
+    this.footer.element.style.overflow = 'visible';
     this.footer.element.appendChild(this.chip.element);
     this.chip.setSpec(null);
-    this.chip.setMoodLabel('');
     this.chip.start();
   }
 
@@ -118,9 +145,18 @@ class Towarzysz {
       {
         onEvent: (event) => this.handle(event),
         onActivity: () => this.animator.wake(),
-        onRespawn: () => this.animator.revive(),
-        onCharacter: (name) => this.loadCharacter(name),
-        onDisconnect: () => this.flushSave(),
+        onRespawn: () => {
+          this.connected = true;
+          this.animator.revive();
+        },
+        onCharacter: (name) => {
+          this.connected = true;
+          this.loadCharacter(name);
+        },
+        onDisconnect: () => {
+          this.connected = false;
+          this.flushSave();
+        },
       },
       {
         idleMs: () => (this.state?.settings.idleMinutes ?? 5) * 60_000,
@@ -129,7 +165,21 @@ class Towarzysz {
       },
     );
 
-    this.labelTimer = setInterval(() => this.refreshMoodLabel(), MOOD_LABEL_REFRESH_MS);
+    // The card shows the mood and the tally, and it can sit pinned for an
+    // evening; while it is open it is refreshed here, and while it is not the
+    // portrait has nothing to draw for.
+    this.cardTimer = setInterval(() => {
+      if (this.popup && this.popup.isOpen === false) this.portrait?.stop();
+      else this.refreshPopup();
+    }, CARD_REFRESH_MS);
+
+    this.moodTimer = setInterval(() => {
+      try {
+        this.tickMood();
+      } catch (error) {
+        log('blad przy przeliczaniu nastroju', error);
+      }
+    }, MOOD_TICK_MS);
 
     this.aliasIds.push(
       this.api.aliases.register(/^\/towarzysz(?:\s+([\s\S]+))?$/i, (matches) => {
@@ -144,7 +194,7 @@ class Towarzysz {
 
     window.addEventListener('beforeunload', this.flushSave);
 
-    // A pinned settings popup from a previous session comes back on its own.
+    // A pinned card from a previous session comes back on its own.
     void this.ensurePopup();
   }
 
@@ -153,8 +203,10 @@ class Towarzysz {
     this.flushSave();
     this.sources?.detach();
     this.sources = null;
-    if (this.labelTimer) clearInterval(this.labelTimer);
-    this.labelTimer = null;
+    if (this.cardTimer) clearInterval(this.cardTimer);
+    this.cardTimer = null;
+    if (this.moodTimer) clearInterval(this.moodTimer);
+    this.moodTimer = null;
     for (const id of this.aliasIds) {
       try {
         this.api.aliases.remove(id);
@@ -171,6 +223,8 @@ class Towarzysz {
     this.popup = null;
     this.bubble.destroy();
     this.chip.destroy();
+    this.portrait?.destroy();
+    this.portrait = null;
     try {
       this.footer.remove();
     } catch {
@@ -201,24 +255,33 @@ class Towarzysz {
   private applySpec(): void {
     const state = this.state;
     if (!state) {
-      this.chip.setSpec(null);
-      this.chip.setSheet(null);
+      this.sheet = null;
+      this.showSpec();
       return;
     }
-    this.chip.setSpec(state.spec);
-    this.refreshMoodLabel();
 
     // Building the sheet is synchronous and cheap (a few thousand pixels), so
     // there is no load to race and no token to guard: the chip either gets
     // this companion's sheet or keeps drawing the procedural figure.
     try {
-      this.chip.setSheet(buildSheet(state.spec));
+      this.sheet = buildSheet(state.spec);
     } catch (error) {
-      this.chip.setSheet(null);
+      this.sheet = null;
       if (!this.sheetWarned) {
         this.sheetWarned = true;
         log('nie udalo sie zbudowac arkusza sprite - towarzysz zostanie niewidoczny', error);
       }
+    }
+    this.showSpec();
+  }
+
+  /** Push the current companion at everything that draws them. */
+  private showSpec(): void {
+    const spec = this.state?.spec ?? null;
+    for (const chip of [this.chip, this.portrait]) {
+      if (!chip) continue;
+      chip.setSpec(spec);
+      chip.setSheet(this.sheet);
     }
   }
 
@@ -240,12 +303,11 @@ class Towarzysz {
 
     // Animation is never gated by restraint: they always react, they rarely speak.
     this.animator.play(reaction.primitive, reaction.intensity, animationNow());
-    this.refreshMoodLabel();
 
     const line = this.speaker.maybe(this.voice(), reaction.category, bucket(mood.value), state.mutes, now, {
       priority: reaction.priority === true,
     });
-    if (line) this.bubble.show(line, this.chip.element);
+    if (line) this.bubble.show(line, this.chip.anchor);
 
     this.scheduleSave();
   }
@@ -256,14 +318,32 @@ class Towarzysz {
     return VOICES[state.settings.voiceOverride ?? state.spec.voiceId];
   }
 
+  /**
+   * Charge the drift for the time since the last tick - or, if the client is
+   * not in the game, move the clock on and leave the value where it was. A
+   * save is only worth a write when the bucket turns over: the number moves
+   * every twenty seconds, but what anyone sees of it does not.
+   */
+  private tickMood(): void {
+    const state = this.state;
+    if (!state) return;
+    const now = Date.now();
+    const before = { value: state.mood, touchedAt: state.moodTouchedAt };
+    const after = this.connected ? advance(before, now) : hold(before, now);
+    state.mood = after.value;
+    state.moodTouchedAt = after.touchedAt;
+    if (bucket(after.value) === bucket(before.value)) return;
+    this.scheduleSave();
+    this.refreshPopup();
+  }
+
+  /** The mood right now, on the same terms the tick uses. */
   private currentMood(): number {
     const state = this.state;
     if (!state) return 0;
-    return readMood({ value: state.mood, touchedAt: state.moodTouchedAt }, Date.now());
-  }
-
-  private refreshMoodLabel(): void {
-    this.chip.setMoodLabel(this.state ? bucketLabel(this.currentMood()) : '');
+    const mood = { value: state.mood, touchedAt: state.moodTouchedAt };
+    const now = Date.now();
+    return (this.connected ? advance(mood, now) : hold(mood, now)).value;
   }
 
   // ------------------------------------------------------------------ storage
@@ -288,8 +368,8 @@ class Towarzysz {
     const args = (rawArgs ?? '').trim().toLowerCase();
     const print = (text: string) => this.api.output.print(`--- Towarzysz: ${text}`);
 
-    if (args === '' || args === 'ustawienia') {
-      void this.openSettings();
+    if (args === '' || args === 'karta' || args === 'ustawienia') {
+      void this.openCard();
       return;
     }
     if (args === 'cisza') {
@@ -331,7 +411,7 @@ class Towarzysz {
       this.animator.playAmbient(animationNow());
       return;
     }
-    print('/towarzysz [cisza|status|powiedz|ruch]');
+    print('/towarzysz [karta|cisza|status|powiedz|ruch]');
   }
 
   private saySomething(): void {
@@ -340,73 +420,47 @@ class Towarzysz {
     const categories: Category[] = ['idle', 'kill', 'loot', 'improve', 'hurt', 'spend'];
     const category = categories[Math.floor(Math.random() * categories.length)] as Category;
     const line = this.speaker.force(this.voice(), category, bucket(this.currentMood()));
-    if (line) this.bubble.show(line, this.chip.element);
+    if (line) this.bubble.show(line, this.chip.anchor);
     this.animator.play('gulp', 0.8, animationNow());
   }
 
-  // ----------------------------------------------------------------- settings
+  // --------------------------------------------------------------------- card
 
-  private settingsView(): SettingsView {
-    return { characterName: this.characterName, state: this.state, mood: this.currentMood() };
+  private cardView(): CardView {
+    return {
+      characterName: this.characterName,
+      state: this.state,
+      mood: this.currentMood(),
+      portrait: this.state ? this.ensurePortrait().element : null,
+    };
   }
 
-  private settingsHandlers(): SettingsHandlers {
-    const withState = (fn: (state: PersistedState) => void) => {
-      const state = this.state;
-      if (!state) return;
-      fn(state);
-      this.scheduleSave();
-    };
+  private cardHandlers(): CardHandlers {
     return {
-      onToggleGlobalMute: (muted) => withState((s) => void (s.mutes.global = muted)),
-      onToggleCategoryMute: (category, muted) =>
-        withState((s) => {
-          const set = new Set(s.mutes.categories);
-          if (muted) set.add(category);
-          else set.delete(category);
-          s.mutes.categories = Array.from(set);
-        }),
-      onVoiceOverride: (voiceId) =>
-        withState((s) => {
-          s.settings.voiceOverride = voiceId;
-          this.refreshPopup();
-        }),
-      onCooldownSeconds: (seconds) =>
-        withState((s) => {
-          s.settings.globalCooldownMs = Math.round(seconds * 1000);
-          this.speaker.setGlobalCooldown(s.settings.globalCooldownMs);
-        }),
-      onIdleMinutes: (minutes) =>
-        withState((s) => {
-          s.settings.idleMinutes = minutes;
-          this.sources?.restartIdleTimer();
-        }),
-      onAmbientLevel: (level: AmbientLevel) =>
-        withState((s) => {
-          s.settings.ambientLevel = level;
-          this.animator.setAmbientLevel(level);
-        }),
       onSaySomething: () => this.saySomething(),
       onAmbient: () => this.animator.playAmbient(animationNow()),
-      onReroll: () => {
-        const name = this.characterName;
-        const state = this.state;
-        if (!name || !state) return;
-        const next = reroll(name, state);
-        if (!next) return;
-        this.state = next;
-        this.speaker.reset();
-        this.applySpec();
-        this.animator.play('cheer', 1.5, animationNow());
-        this.flushSave();
-        this.refreshPopup();
-        this.api.output.print(`--- Towarzysz: od dzis towarzyszy ci ${next.spec.name}.`);
-      },
     };
+  }
+
+  /** The portrait chip, built on first use and kept for the plugin's lifetime. */
+  private ensurePortrait(): Chip {
+    if (this.portrait) return this.portrait;
+    const portrait = new Chip({
+      animator: this.animator,
+      scale: PORTRAIT_SCALE,
+      label: false,
+      float: false,
+    });
+    this.portrait = portrait;
+    this.showSpec();
+    portrait.start();
+    return portrait;
   }
 
   private buildPanel(): HTMLDivElement {
-    return buildSettingsPanel(this.settingsView(), this.settingsHandlers());
+    // A rebuild moves the portrait into the new card rather than replacing it;
+    // it keeps drawing throughout, so there is nothing to restart here.
+    return buildCompanionCard(this.cardView(), this.cardHandlers());
   }
 
   private ensurePopup(): Promise<PopupLike | null> {
@@ -425,7 +479,7 @@ class Towarzysz {
           return popup;
         }
       } catch (error) {
-        log('nie udalo sie zarejestrowac okna ustawien', error);
+        log('nie udalo sie zarejestrowac okna z karta', error);
       }
       return null;
     })();
@@ -433,8 +487,10 @@ class Towarzysz {
     return promise;
   }
 
-  private async openSettings(): Promise<void> {
+  private async openCard(): Promise<void> {
     try {
+      // The card is only worth drawing while somebody is looking at it.
+      this.portrait?.start();
       const popup = await this.ensurePopup();
       if (popup) {
         popup.setBody(this.buildPanel());
@@ -446,9 +502,9 @@ class Towarzysz {
         this.popup = await ui.createPopup('Towarzysz', this.buildPanel());
         return;
       }
-      this.api.output.print('--- Towarzysz: ten klient nie obsluguje okien pluginow; uzyj /towarzysz cisza i /towarzysz status.');
+      this.api.output.print('--- Towarzysz: ten klient nie obsluguje okien pluginow; uzyj /towarzysz status i /towarzysz cisza.');
     } catch (error) {
-      log('nie udalo sie otworzyc ustawien', error);
+      log('nie udalo sie otworzyc karty', error);
     }
   }
 

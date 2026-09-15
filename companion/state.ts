@@ -12,6 +12,11 @@ import { isValidSpec, roll } from './roll';
 import { VOICE_IDS } from '../voice/catalog';
 
 export const STORAGE_PREFIX = 'plugin:towarzysz:';
+/**
+ * There is no way to reroll any more - you get the companion you get. The
+ * number survives as part of the seed and of the stored shape, so anyone who
+ * spent their one reroll while it existed keeps the companion it gave them.
+ */
 export const MAX_REROLLS = 1;
 
 export const DEFAULT_GLOBAL_COOLDOWN_MS = 45_000;
@@ -64,6 +69,7 @@ export function freshState(characterName: string, rerollsUsed = 0, now = Date.no
     rerollsUsed,
     mood: 0,
     moodTouchedAt: now,
+    metAt: now,
     mutes: { global: false, categories: [] },
     stats: { kills: 0, deaths: 0, sessions: 0 },
     settings: {
@@ -122,7 +128,14 @@ export function normalizeState(raw: unknown, characterName: string, now = Date.n
     spec,
     rerollsUsed,
     mood: Math.min(1, Math.max(-1, finite(value.mood, 0))),
-    moodTouchedAt: Math.min(now, finite(value.moodTouchedAt, now)),
+    // The stored timestamp is deliberately not kept: the mood drifts on time
+    // spent playing, not on time the client was shut (see companion/mood.ts),
+    // so a load starts the drift clock here rather than backdating it to
+    // whenever the save was written.
+    moodTouchedAt: now,
+    // A save from before the card existed records no first meeting; the first
+    // load after the upgrade is the closest honest answer.
+    metAt: Math.min(now, finite(value.metAt, now)),
     mutes: { global: mutesRaw.global === true, categories: Array.from(new Set(categories)) },
     stats: {
       kills: Math.max(0, Math.floor(finite(statsRaw.kills, 0))),
@@ -163,17 +176,3 @@ export function save(characterName: string, state: PersistedState, storage: KeyV
   }
 }
 
-/** The one-time reroll. Returns null when it has already been used. */
-export function reroll(characterName: string, state: PersistedState, now = Date.now()): PersistedState | null {
-  if (state.rerollsUsed >= MAX_REROLLS) return null;
-  const rerollsUsed = state.rerollsUsed + 1;
-  return {
-    ...state,
-    spec: roll(characterName, rerollsUsed),
-    rerollsUsed,
-    // A new companion starts fresh; the mutes and settings are the player's, so they stay.
-    mood: 0,
-    moodTouchedAt: now,
-    stats: { ...state.stats },
-  };
-}

@@ -101,8 +101,10 @@ export interface PersistedState {
   rerollsUsed: number;
   /** -1..+1 */
   mood: number;
-  /** Epoch ms, for decay on load. */
+  /** Epoch ms of the last nudge or drift step. A load re-bases it to now. */
   moodTouchedAt: number;
+  /** Epoch ms of the first meeting; the card shows it. Older saves get their load time. */
+  metAt: number;
   mutes: { global: boolean; categories: Category[] };
   stats: { kills: number; deaths: number; sessions: number };
   /**

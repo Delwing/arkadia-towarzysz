@@ -240,6 +240,24 @@ about the client or the registry and had to bend. Each one is easy to revisit.
    throws the whole record away.
 7. **Sessions** are counted per character load (each connection or character
    switch increments `stats.sessions`).
+7b. **The mood drifts on time spent playing, not on wall-clock time.** The spec
+   had `moodTouchedAt` decay lazily on read - cheap, no timer to keep alive, and
+   charging the drift for every hour the browser was shut. With a twenty-minute
+   half-life that makes the stored mood a formality: a session opens at
+   `spokojnie` however the last one ended. And since almost nothing in the event
+   table is a dampener - a death, a bad head, a few hit points - the drift is
+   the only thing that brings a good evening down, so it was spending its whole
+   budget on the night. Now it is charged in steps: `plugin.ts` ticks
+   `advance` every 20 s while the client is connected and `hold` - clock
+   forward, value untouched - while it is not, a load re-bases `moodTouchedAt`
+   to the load time, and `mood.ts` caps one step at `MAX_STEP_MS` (90 s), which
+   is what swallows a sleeping machine, a discarded tab and a save from
+   yesterday. The tick is 20 s against that cap on purpose: Chrome throttles a
+   hidden tab's timers to once a minute, and a minute still fits in one step.
+7c. The tick writes to storage only when the bucket turns over. The number moves
+   every twenty seconds and nothing shows it - `zle` / `spokojnie` / `dobrze`
+   is what the card and the voice packs read - and the existing saves (an
+   event, a disconnect, `beforeunload`) already catch the rest.
 
 ## Events (the spec's "exact v1 event list" question)
 
@@ -326,9 +344,8 @@ about the client or the registry and had to bend. Each one is easy to revisit.
     The flag sits on the **reaction, not the category**, because the gem case
     needs a value threshold: `gemGood` is priority at 2 mithryls
     (`GEM_PRIORITY_COPPER`) and an ordinary remark at 1. `PRIORITY_CATEGORIES`
-    lists the categories that can carry it, drives the note in the settings
-    panel so the exemption is not invisible to someone who set a long pause,
-    and is checked against `resolve()` by a test.
+    lists the categories that can carry it and is checked against `resolve()`
+    by a test.
 17c. **`priorityWindowMs` rations the exemption per category.** Deaths and
     niebotyczne postepy are rare because the game makes them rare, so their own
     cooldown is limit enough and their window is 0. Valuable stones are rare
@@ -339,7 +356,7 @@ about the client or the registry and had to bend. Each one is easy to revisit.
     dropped** - it still speaks if the global cooldown happens to be clear; and
     the window counts **uses of the exemption**, not priority events, so a
     stone found in a quiet moment leaves it unspent.
-18. `/towarzysz powiedz` and the panel's "Powiedz cos" bypass restraint on
+18. `/towarzysz powiedz` and the card's "Zagadnij" bypass restraint on
     purpose, so the bubble can be checked without waiting for an event.
 
 ## UI
@@ -347,16 +364,44 @@ about the client or the registry and had to bend. Each one is easy to revisit.
 19. The chip registers an **empty** footer component and appends its own
     element into the handle's span, because the client clones any Node passed
     to `registerFooterComponent` and the plugin would lose its canvas.
-20. Chip size: a 26x28 sprite-pixel canvas at 1.5 CSS px per pixel (39x42 px).
-    That is a few pixels taller than the client's other footer chips; the
-    constant is `PIXEL_SCALE` in `ui/chip.ts`.
-21. Mood labels on the chip: `markotnie` / `spokojnie` / `radosnie` -
-    adverbs, so they fit any companion.
-22. The settings panel uses `registerPersistentPopup` (so a pinned panel is
-    restored) and falls back to `createPopup` on an older client; the reroll
-    confirmation is `window.confirm`.
-23. Archetype labels in the panel are the plain Polish nouns (`mag`,
+20. Chip size: a 26x28 sprite-pixel canvas at 1.5 CSS px per pixel (39x42 px),
+    which is far taller than a footer row. **The canvas is out of the flow.**
+    The chip's own box is its one line of text - the name, the height of any
+    other footer chip - and the canvas is absolutely
+    positioned inside a slot of the canvas's width, its bottom edge on that
+    line. The companion stands on the footer and overflows upwards into the
+    output: the row does not grow, nothing shifts, nothing is cut. Measured in
+    the showcase: chip 12 px tall, canvas 42, 30 px of it above the row, and a
+    mock footer bar is exactly as tall with the chip in it as without.
+20b. Two things have to agree for that to work: the footer handle's own span
+    gets `overflow: visible` from `plugin.ts`, and the bubble anchors on
+    `chip.anchor` (the canvas) rather than on the chip element, which would
+    put the bubble over the companion's head.
+21. **The chip shows the name and nothing else.** The mood label - `markotnie`
+    / `spokojnie` / `radosnie`, adverbs so they fit any companion - is on the
+    card and in `/towarzysz status`. In the footer it was a second word nobody
+    reads, and while it was stacked under the name it cost the row a line.
+22. **`/towarzysz` is a card, not a settings panel.** The companion is rolled,
+    not configured, so the window only shows them: portrait, archetype, the
+    rolled traits and voice, mood, the tally, the palette and how long you have
+    been together. What used to be there - the mute grid, the voice picker, the
+    cooldown and idle boxes, the ambient level, the one-time reroll - is gone.
+    Those settings still exist in the stored state and still work; they are the
+    author's tuning, and the only one a player can reach is `/towarzysz cisza`.
+    `reroll()` was deleted outright.
+22b. The card's portrait is a `Chip` at scale 4 with `label: false` and
+    `float: false` - the same renderer, animator and sheet as the footer's, so
+    the card cannot drift from what the footer shows. It is built once and
+    **re-parented** into each rebuild rather than re-created, it stops while
+    the popup is shut, and `Chip.tick` skips a frame whenever its element is
+    not in the document.
+22c. The window uses `registerPersistentPopup` (so a pinned card is restored)
+    and falls back to `createPopup` on an older client.
+23. Archetype labels on the card are the plain Polish nouns (`mag`,
     `goblin`...); they name the archetype, not the companion's gender.
+23b. `metAt` was added to the stored state for the card's "Razem od ...". A
+    save that predates it is dated from the first load that finds it missing,
+    and a date from the future is not believed.
 
 ## Tooling
 

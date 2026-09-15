@@ -13,14 +13,13 @@ zapomnienia, nigdy system, ktory czegos od ciebie chce.
 - **Losowany, nie projektowany** - archetyp (mag, czarodziej, wiesniak, potwor,
   ogr, ork, goblin), kolory, imie i glos losuja sie z imienia postaci. Ta sama
   postac zawsze dostaje tego samego towarzysza, nawet po wyczyszczeniu
-  przegladarki. Jedno losowanie od nowa, nigdy wiecej.
+  przegladarki. Nie da sie go wylosowac jeszcze raz - dostajesz tego, ktory ci wypadl.
 - **Reaguje animacja na wszystko** - zabicia, postepy, obrazenia, smierc,
   monety, zakupy, sprzedaz, ocena kamieni, bezczynnosc. Zawsze cos zrobi,
   rzadko cos powie.
 - **Zyje wlasnym zyciem** - gdy nic sie nie dzieje, co pol minuty przejdzie
   sie po stopce, zamigocze albo zniknie w slupie swiatla i wroci kawalek
-  dalej. Nigdy przy tym nic nie mowi i nigdy nie przerywa reakcji; czestotliwosc
-  (albo cisze) ustawiasz w `/towarzysz`.
+  dalej. Nigdy przy tym nic nie mowi i nigdy nie przerywa reakcji.
 - **Powsciagliwosc jest funkcja** - przerwa miedzy kwestiami (domyslnie 45 s),
   osobne przerwy i prawdopodobienstwa na kategorie. Przez dwadziescia zabic
   milczy, przy dwudziestym pierwszym cos rzuci. Ale na smierc, niebotyczne
@@ -31,7 +30,10 @@ zapomnienia, nigdy system, ktory czegos od ciebie chce.
   Maloomowny. Glos losuje sie niezaleznie od wygladu: goblin mowiacy jak
   ponury wieszcz to dokladnie ten rodzaj pary, dla ktorego warto losowac.
 - **Nastroj** - jedna liczba, ktora plynie z sesja i zabarwia to, co mowi.
-  Ta sama rzecz brzmi inaczej w dobry wieczor niz po trzeciej smierci.
+  Ta sama rzecz brzmi inaczej w dobry wieczor niz po trzeciej smierci. Sam z
+  siebie wraca powoli do zera - w jakies dwadziescia minut gry mniej wiecej o
+  polowe - ale liczy sie tylko czas przy grze: nastroj, na ktorym konczysz
+  wieczor, zastajesz nastepnego dnia.
 - **Nie smieci w oknie gry** - mowi tylko w dymku nad stopka. Nigdy nie drukuje
   do wyjscia gry.
 
@@ -39,13 +41,14 @@ zapomnienia, nigdy system, ktory czegos od ciebie chce.
 
 | Komenda | Dziala |
 | --- | --- |
-| `/towarzysz` | ustawienia: cisza calkowita i na kategorie, glos, przerwy, ruch wlasny, losowanie od nowa |
+| `/towarzysz` | karta towarzysza: kto to, jak wyglada, jaki ma nastroj, co razem przeszliscie |
 | `/towarzysz cisza` | szybkie wyciszenie / odciszenie |
 | `/towarzysz status` | kim jest, jaki ma nastroj, statystyki |
 | `/towarzysz powiedz` | niech cos powie (test dymka) |
 | `/towarzysz ruch` | niech sie przejdzie (test ruchu wlasnego) |
 
-Klikniecie w towarzysza w stopce tez otwiera ustawienia.
+Klikniecie w towarzysza w stopce tez otwiera karte. Nie ma tu nic do ustawiania:
+towarzysz jest losowany, nie konfigurowany.
 
 ## Instalacja
 

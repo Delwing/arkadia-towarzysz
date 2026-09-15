@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MemoryStorage, freshState, load, normalizeState, reroll, save, storageKey } from '../companion/state';
+import { MemoryStorage, freshState, load, normalizeState, save, storageKey } from '../companion/state';
 import { roll } from '../companion/roll';
 
 describe('state', () => {
@@ -14,7 +14,9 @@ describe('state', () => {
     state.mutes.categories = ['kill'];
     expect(save('Dargoth', state, storage)).toBe(true);
     const loaded = load('Dargoth', storage, 2000);
-    expect(loaded).toEqual(state);
+    // Everything comes back as it went in, bar the drift clock: a load re-bases
+    // it, because the time in between was not time spent playing.
+    expect(loaded).toEqual({ ...state, moodTouchedAt: 2000 });
   });
 
   it('a fresh roll comes back for missing, broken or foreign-version storage', () => {
@@ -29,7 +31,7 @@ describe('state', () => {
     expect(load('Dargoth', storage, 5).spec).toEqual(roll('Dargoth', 0));
   });
 
-  it('trusts the seed over a tampered spec, and keeps the reroll', () => {
+  it('trusts the seed over a tampered spec, and keeps a spent reroll', () => {
     const state = freshState('Dargoth', 1, 0);
     const tampered = { ...state, spec: { ...state.spec, archetype: 'knight' } };
     const normalized = normalizeState(tampered, 'Dargoth', 0);
@@ -48,14 +50,23 @@ describe('state', () => {
     expect(normalized.settings.voiceOverride).toBeNull();
   });
 
-  it('allows exactly one reroll', () => {
-    const state = freshState('Dargoth', 0, 0);
-    const once = reroll('Dargoth', state, 10);
-    expect(once).not.toBeNull();
-    expect(once!.rerollsUsed).toBe(1);
-    expect(once!.spec).toEqual(roll('Dargoth', 1));
-    expect(once!.mood).toBe(0);
-    expect(reroll('Dargoth', once!, 20)).toBeNull();
+  it('brings the mood back where it was left, however long the client was shut', () => {
+    const state = freshState('Dargoth', 0, 1000);
+    state.mood = 0.9;
+    const night = 1000 + 8 * 60 * 60 * 1000;
+    const loaded = normalizeState(state, 'Dargoth', night)!;
+    expect(loaded.mood).toBe(0.9);
+    expect(loaded.moodTouchedAt).toBe(night);
+  });
+
+  it('dates a save that predates the card from the load that found it', () => {
+    const state = freshState('Dargoth', 0, 1000);
+    const old = { ...state } as Record<string, unknown>;
+    delete old.metAt;
+    expect(normalizeState(old, 'Dargoth', 7000)!.metAt).toBe(7000);
+    // A recorded meeting is kept, and one from the future is not believed.
+    expect(normalizeState(state, 'Dargoth', 7000)!.metAt).toBe(1000);
+    expect(normalizeState({ ...state, metAt: 9000 }, 'Dargoth', 7000)!.metAt).toBe(7000);
   });
 
   it('a throwing storage is survivable', () => {

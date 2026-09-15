@@ -12,7 +12,8 @@
  */
 
 import { roll } from '../../companion/roll';
-import { bucket, bucketLabel, nudge, read as readMood, type Mood } from '../../companion/mood';
+import { freshState } from '../../companion/state';
+import { advance, bucket, bucketLabel, nudge, read as readMood, type Mood } from '../../companion/mood';
 import {
   AMBIENT_LEVELS,
   ARCHETYPES,
@@ -28,14 +29,14 @@ import { buildSheet, frameRect, type LoadedSheet } from '../../render/sheet';
 import { frameIndex } from '../../render/pose';
 import { CANVAS_H, CANVAS_W, Chip, PIXEL_SCALE } from '../../ui/chip';
 import { Bubble } from '../../ui/bubble';
-import { AMBIENT_LABELS, ARCHETYPE_LABELS, CATEGORY_LABELS } from '../../ui/settings';
+import { AMBIENT_LABELS, ARCHETYPE_LABELS, CATEGORY_LABELS, buildCompanionCard } from '../../ui/card';
 import { resolve, type GameEvent } from '../../events/bindings';
 import { Speaker } from '../../voice/speak';
 import { VOICES, voiceName } from '../../voice/catalog';
 import { COPPER_PER } from '../../text/coins';
 
 // ---------------------------------------------------------------------------
-// Tiny DOM helpers, in the same spirit as ui/settings.ts
+// Tiny DOM helpers, in the same spirit as ui/card.ts
 // ---------------------------------------------------------------------------
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, text?: string): HTMLElementTagNameMap[K] {
@@ -153,6 +154,7 @@ function applySpec(next: CompanionSpec): void {
     chip.setSheet(sheet);
   }
   refreshSpecPanel();
+  refreshCard();
   log(
     `nowy towarzysz: <i>${spec.name}</i> - ${ARCHETYPE_LABELS[spec.archetype]}, glos ${voiceName(spec.voiceId)}` +
       `${spec.parts.hasWeapon ? ', z bronia' : ''}${spec.parts.hairLong ? ', dlugie wlosy' : ''}`,
@@ -177,7 +179,8 @@ function fire(event: GameEvent): void {
         priority: reaction.priority === true,
       })
     : speaker.force(voice, reaction.category, bucket(mood.value));
-  if (line) bubble.show(line, chips[0]?.element as HTMLElement);
+  if (line) bubble.show(line, chips[0]?.anchor as HTMLElement);
+  refreshCard();
   log(
     `<i>${event.type}</i> -> ${reaction.primitive} x${reaction.intensity.toFixed(2)}, ` +
       `${CATEGORY_LABELS[reaction.category].toLowerCase()}${reaction.priority ? ' (priorytet)' : ''}, ` +
@@ -208,6 +211,48 @@ function refreshSpecPanel(): void {
     swatches.appendChild(chip);
   }
   specBox.appendChild(swatches);
+}
+
+const cardBox = el('div');
+/**
+ * The card's portrait, on the same animator as the stage chips and in the
+ * `chips` list with them - so the scrubber drives it too, and what the card
+ * shows is the same frame the footer would be showing.
+ */
+let cardPortrait: Chip | null = null;
+
+/** The card wants a whole persisted state; the showcase only keeps the parts it plays with. */
+function refreshCard(): void {
+  if (!cardPortrait) return;
+  const now = Date.now();
+  const state = freshState(spec.name, 0, now - 12 * 24 * 3_600_000);
+  state.spec = spec;
+  state.mood = mood.value;
+  state.stats = { kills: 128, deaths: 3, sessions: 14 };
+  cardBox.textContent = '';
+  cardBox.appendChild(
+    buildCompanionCard(
+      { characterName: 'Delwing', state, mood: readMood(mood, now), portrait: cardPortrait.element },
+      {
+        onSaySomething: () => fire({ type: 'idle' }),
+        onAmbient: () => animator.playAmbient(clock()),
+      },
+    ),
+  );
+}
+
+function cardPanel(): HTMLDivElement {
+  const box = panel('Karta');
+  cardPortrait = new Chip({ animator, scale: 4, label: false, float: false });
+  chips.push(cardPortrait);
+  cardPortrait.start();
+  cardBox.style.maxWidth = '340px';
+  cardBox.style.border = '1px solid var(--line)';
+  cardBox.style.borderRadius = '6px';
+  box.appendChild(cardBox);
+  box.appendChild(el('div', 'caption', 'To jest okno /towarzysz. Statystyki sa zmyslone, reszta jest prawdziwa.'));
+  refreshCard();
+  return box;
 }
 
 function companionPanel(): HTMLDivElement {
@@ -260,6 +305,11 @@ function stagePanel(): HTMLDivElement {
     const height = CANVAS_H * PIXEL_SCALE;
     holder.style.width = `${width}px`;
     holder.style.height = `${height}px`;
+    // The chip's canvas hangs out of the flow, above the chip's own box - the
+    // footer's line is at its feet. Standing the chip on the holder's bottom
+    // edge gives that overflow the holder to grow into.
+    holder.style.display = 'flex';
+    holder.style.alignItems = 'flex-end';
     const cell = el('div', 'cell');
     cell.style.width = `${width * zoom + (zoom === 1 ? 70 : 8)}px`;
     cell.style.height = `${height * zoom}px`;
@@ -595,7 +645,11 @@ function drawSheet(current: { animation: string; phase: number }): void {
 function drawState(now: number): void {
   const pose = animator.pose(now);
   const primitive = animator.current(now) as Primitive;
-  const value = readMood(mood, Date.now());
+  // The draw loop is this harness's mood tick: the drift is charged a frame at
+  // a time, which is the same curve the plugin's twenty-second one walks, and
+  // it stops when the tab does - as the real one stops when the client does.
+  mood = advance(mood, Date.now());
+  const value = mood.value;
   const rows: [string, string][] = [
     ['animacja', `${primitive}${primitive === 'idle' ? '' : ` (${PRIMITIVE_DEFS[primitive].durationMs} ms)`}`],
     ['klatka', `${pose.frame.animation} @ ${(pose.frame.phase * 100).toFixed(0)}% -> ${sheet ? frameIndex(pose.frame.phase, sheet.animations[pose.frame.animation]?.frames ?? 1) : '-'}`],
@@ -620,6 +674,7 @@ function drawState(now: number): void {
 
 app.appendChild(stagePanel());
 app.appendChild(companionPanel());
+app.appendChild(cardPanel());
 app.appendChild(animationPanel());
 app.appendChild(eventPanel());
 app.appendChild(ambientPanel());

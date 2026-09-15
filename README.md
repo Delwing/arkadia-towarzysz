@@ -31,9 +31,9 @@ render/mixer.ts        baked Mixer art -> a companion's own sheet of pixels (pur
 render/sheet.ts        that buffer -> an offscreen canvas, plus frame extraction
 render/colour.ts       hex/rgb and shading helpers
 render/animator.ts     plays them: what interrupts what, breathing, blinking
-ui/chip.ts             footer component: canvas, name, mood label
+ui/chip.ts             footer component: canvas and name - and the card's portrait
 ui/bubble.ts           speech bubble anchored above the chip
-ui/settings.ts         the /towarzysz panel
+ui/card.ts             the /towarzysz window: the companion's card
 events/bindings.ts     game event -> (primitive, intensity, speech category, mood delta)
 events/sources.ts      client events and triggers -> game events
 text/polishNumbers.ts  "dwadziescia trzy" -> 23
@@ -235,6 +235,23 @@ client event
 | `gmcp.char.state.headache` (0..6) crosses into a deeper third | `wince`, scales with the stage | `hangover` | -0.08 to -0.16 |
 | no command for 5 min (configurable) | `doze` (until the next command) | `idle` | 0 |
 
+## Mood
+
+One number in `[-1, +1]`, in `companion/mood.ts`. The events above nudge it by
+the amounts in the table; it clamps at both ends, so grinding kills cannot bank
+infinite goodwill, and it comes out as one of three buckets - `zle`,
+`spokojnie`, `dobrze` - which is all the voice packs and the card ever see.
+
+Almost nothing in that table pushes it down: a death, a bad head, a few hit
+points. What actually ends a good evening is the drift back toward 0, with a
+half-life of about twenty minutes **of time spent playing**. Time with the
+client shut is not charged for, so the mood you log out on is the mood you come
+back to, and bringing it down takes twenty minutes at the keyboard rather than a
+night's sleep. The plugin charges the drift on a twenty-second tick while the
+client is connected and only moves the clock on while it is not; `mood.ts` caps
+any single step at 90 s, so a sleeping laptop, a frozen tab or a save from
+yesterday cannot charge a night's worth of drift the moment it comes back.
+
 ## Idle life
 
 Reactions cover the interesting moments, but most of a session is nothing
@@ -258,12 +275,14 @@ still. And they never speak: this is their own business, not a remark about the
 player.
 
 The sign of the intensity is the direction for `walk` and `warp` - the one
-place an intensity is signed. `Przejdz sie` in the panel, or `/towarzysz ruch`,
+place an intensity is signed. `Przejdz sie` on the card, or `/towarzysz ruch`,
 plays one on demand.
 
-Restraint (all persisted, all in `/towarzysz`): a global cooldown (default
+Restraint (all persisted, none of it exposed): a global cooldown (default
 45 s), per-category cooldowns and probabilities (`voice/speak.ts`), a global
-mute and per-category mutes. Animation is never gated by any of it.
+mute and per-category mutes. Animation is never gated by any of it. Only the
+global mute has a control at all, `/towarzysz cisza`; the rest is tuning, and
+tuning is the author's job, not the player's.
 
 Some reactions speak through the global cooldown. `resolve()` decides that per
 event, not per category (`Reaction.priority`): a death, an improve reaching
@@ -285,7 +304,9 @@ so a stone found while nothing was holding the cooldown does not spend it.
 
 One key per character in localStorage: `plugin:towarzysz:<characterName>`.
 The companion is a deterministic function of the character name and the
-number of rerolls used, so losing storage does not lose the companion. If
+number of rerolls used, so losing storage does not lose the companion. Nothing
+rerolls it any more - the count only survives so that anyone who spent their one
+reroll while that existed keeps the companion it gave them. If
 localStorage is unavailable the plugin runs from memory for the session.
 
 ## Licensing
@@ -295,7 +316,7 @@ The art and the layout data come from KingBell's
 itch.io page declares **Asset license: CC-BY 4.0** and **Code license: MIT**, so
 both the sprites and the tables read out of the tool are used on those terms.
 The attribution its author asks for is a link back to that page: it is in this
-file, in `DESCRIPTION.md`, in the settings panel, and in the header of
+file, in `DESCRIPTION.md`, on the companion's card, and in the header of
 `render/mixer-art.ts` along with the MIT notice.
 
 Everything else - the plugin, the pipeline, the animation table - is this
