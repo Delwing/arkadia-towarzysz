@@ -23,6 +23,17 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: '20'
+          # Yarn's cache is not shared between runs here, and that is on
+          # purpose. `@arkadia/plugin-types` is a tarball at a fixed URL that the
+          # extension republishes with a fresh timestamp version - so a fresh
+          # hash, and a fresh cache folder - on every push. There is nothing to
+          # reuse from run to run, and the one time the cache does carry that
+          # folder across it carries a half-written one: yarn fetched it under
+          # the new integrity hash without writing the .yarn-metadata.json it
+          # looks for while linking, and every later run then restored the
+          # broken entry and failed with ENOENT on it. The install is a few
+          # seconds either way.
+          package-manager-cache: false
 
       # `--update-checksums` is for one dependency. `@arkadia/plugin-types` is a
       # tarball at a fixed URL, and the extension republishes it with a fresh
