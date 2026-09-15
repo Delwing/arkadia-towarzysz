@@ -4,7 +4,7 @@ A companion plugin for the [Arkadia Web Client](https://github.com/Delwing/arkad
 A pixel-art figure lives in the client's footer. They are rolled once per
 character - random archetype, look, voice and name - react to what happens in
 your session with small animations, and occasionally say something in a speech
-bubble above the footer. They have a mood that drifts with how the session is
+bubble beside them in the footer. They have a mood that drifts with how the session is
 going. They have no needs, cannot be neglected, and cannot die.
 
 The design is in [`docs/specs/2026-09-15-towarzysz-design.md`](docs/specs/2026-09-15-towarzysz-design.md);
@@ -32,7 +32,7 @@ render/sheet.ts        that buffer -> an offscreen canvas, plus frame extraction
 render/colour.ts       hex/rgb and shading helpers
 render/animator.ts     plays them: what interrupts what, breathing, blinking
 ui/chip.ts             footer component: canvas and name - and the card's portrait
-ui/bubble.ts           speech bubble anchored above the chip
+ui/bubble.ts           speech bubble, beside the chip and clear of the name
 ui/card.ts             the /towarzysz window: the companion's card
 events/bindings.ts     game event -> (primitive, intensity, speech category, mood delta)
 events/sources.ts      client events and triggers -> game events
@@ -126,7 +126,14 @@ a ducking companion is a number the artist wrote down.
 `tools/mixer/manifest.json` names the handful of animations and heads we use,
 and doubles as the map between the two vocabularies - a kill is their sword
 swing, loot is `duck` (bending to pick something up), spending is `hurt_tear`
-(a companion shedding a tear over the price):
+(a companion shedding a tear over the price), being afraid is `duck_pose` (a
+crouch, held), and hiding from the Apocalypse is `die_head`, which sinks the
+figure into the floor until nothing shows but the hat and the eyes under it.
+
+Their catalogue also draws the weapons, one idle per weapon rather than as a
+layer of its own, which is what a fight gets: `weapon_sword_idle` for most
+companions and `weapon_staff_idle` for the robed ones, so the weapon is out
+while the fight lasts and away afterwards.
 
 ```
 yarn mixer list                              what is named, and what is cached
@@ -237,6 +244,11 @@ client event
 | `knowledgeTickEvent` - a field of knowledge grew | `glitter` | `knowledge` | +0.12 |
 | `allEnemiesKilled` after two or more of our own kills | `cheer`, scales with the group | `clear` | +0.06 to +0.12 |
 | `stunStart` / `stunEnd` | `stun`, held until the client says it is over | `stun` | -0.12 |
+| `gmcp.char.state.panic` (0..4) crosses into a deeper third | `cower`, scales with the stage | `panic` | -0.10 to -0.19 |
+| `combatState` - in a fight, and out of it | `guard` / `guardStaff`, held for the fight | *(silent)* | 0 |
+| `worldDestructionTimer` starts counting | `hide` (priority), held until it stops | `apocalypse` | -0.10 |
+| `pipeLit` becomes true | `smoke` - a sit, two drags and up again | `pipe` | +0.06 |
+| `Masz nowa poczte od ...` | `point` | `mail` | +0.05 |
 | `fishing.state` -> `biting` | `cheer` x1.6 | `fishBite` | +0.03 |
 | `Wyciagasz zlapana rybe na powierzchnie.` | `glitter` x1.5 | `fishCatch` | +0.12 |
 | `transport.onBoard` becomes true | `sway` x0.9 | `travel` | +0.04 |
@@ -245,12 +257,31 @@ client event
 | nothing in the table above for 7 min, with a command typed in the last 3 | `slump` x0.7 | `bored` | -0.03 |
 | the start of a session (not a client signal - see **The day's temper**) | `cheer` / `slump` / nothing | `temper` | sets the day |
 
-Two of those are states rather than moments, so they leave the companion in a
+Four of those are states rather than moments, so they leave the companion in a
 **posture** - `events/bindings.ts` calls it a stance - which they hold between
 reactions instead of standing there: `watch` for as long as the float is on the
-water, `stun` for as long as the character cannot act. A reaction cuts through
-one and hands it back when it is done; a death, a disconnect or a character
-switch ends it.
+water, `stun` for as long as the character cannot act, a drawn weapon for as
+long as the fight lasts, and the hat pulled over their head for as long as the
+world has minutes left. A reaction cuts through one and hands it back when it
+is done; a death, a disconnect or a character switch ends it.
+
+A pipe is deliberately *not* one of them. It burns for a quarter of an hour and
+the player walks, shops and fights with it lit, so the companion marks the
+lighting - down onto the footer, two drags, and up again - rather than being sat
+down for the rest of it.
+
+The rest overlap - a fight starts while the float is on the water, and is
+interrupted in turn by the end of the world - so the plugin keeps one posture
+per state (`PostureKey`) and stands the companion in the most urgent of them
+(`POSTURE_ORDER`): a stun over everything, then the Apocalypse, then a fight,
+then a float. That is what makes a fight ending by the water sit them back down
+rather than stand them up.
+
+The weapon is the one thing a posture chooses by companion rather than by
+event. `stanceFor` asks for a generic `guard` and `guardFor` says which it is:
+`guardStaff` for the two robed archetypes, `guard` - the same sword the `lunge`
+swings - for everybody else. So the weapon comes out when the fight starts and
+goes away when it ends.
 
 Most of these are events `@arkadia/plugin-types` does not declare. The published
 `ClientEvents` is a hand-kept subset of the client's own
@@ -291,8 +322,9 @@ climbing back out is the drift's job - the best part of an hour of playing on a
 bright day, and longer on a grim one, because the day is what they are climbing
 back to.
 
-Almost nothing in that table pushes it down: a death, a bad head, a few hit
-points. What actually ends a good evening is the drift back toward 0, with a
+Almost nothing in that table pushes it down: a death, a bad head, a fright, a
+few hit points, and the end of the world. What actually ends a good evening is
+the drift back toward 0, with a
 half-life of about twenty minutes **of time spent playing**. Time with the
 client shut is not charged for, so the mood you log out on is the mood you come
 back to, and bringing it down takes twenty minutes at the keyboard rather than a
@@ -335,7 +367,8 @@ tuning is the author's job, not the player's.
 
 Some reactions speak through the global cooldown. `resolve()` decides that per
 event, not per category (`Reaction.priority`): a death, an improve reaching
-niebotyczne, and a gem valued at 2 mithryls or more. They are the moments the
+niebotyczne, a przeobrazenie, the world being counted down, and a gem valued at
+2 mithryls or more. They are the moments the
 reaction is actually for, and without the exemption they would be the ones most
 reliably swallowed - a death arrives on the heels of a run of `hurt`, which is
 exactly what is holding the cooldown at that moment. A priority line still

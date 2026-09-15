@@ -22,6 +22,8 @@ export interface Pose {
   sparkle: number;
   /** 0..1, sleep marks. */
   zz: number;
+  /** 0..1, pipe smoke drifting off the companion. */
+  puff: number;
   /** 0..1, hurt flash. */
   flash: number;
   /** 0..1 opacity of the whole figure; a warp fades out through it. */
@@ -46,6 +48,7 @@ export function basePose(): Pose {
     rot: 0,
     sparkle: 0,
     zz: 0,
+    puff: 0,
     flash: 0,
     alpha: 1,
     beam: 0,

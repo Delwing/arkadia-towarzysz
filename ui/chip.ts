@@ -133,9 +133,9 @@ export class Chip {
   }
 
   /**
-   * What a bubble should hang above: the canvas, not the chip. The chip's own
-   * box now stops at the text, and a bubble placed above that would cover the
-   * companion's head.
+   * What a bubble hangs off: the canvas, not the chip. The chip's own box stops
+   * at the text, so anchoring to it would put the bubble beside the name rather
+   * than beside the companion.
    */
   get anchor(): HTMLElement {
     return this.canvas;
@@ -295,6 +295,25 @@ export class Chip {
         ctx.fillRect(x, y, 3 * unit * 0.7, unit * 0.7);
         ctx.fillRect(x + unit * 0.7, y + unit * 0.7, unit * 0.7, unit * 0.7);
         ctx.fillRect(x, y + 1.4 * unit, 3 * unit * 0.7, unit * 0.7);
+      }
+    }
+    if (pose.puff > 0) {
+      // Pipe smoke: three pixels leaving the companion's head, rising and
+      // thinning. The strength is the drag they just took, so the puffs come
+      // and go with the sitting rather than streaming continuously.
+      //
+      // Only the seated `smoke` asks for this, so the start is where a sitting
+      // companion's head is - about two thirds of their standing height, which
+      // is where the sit leaves it - rather than anywhere a pose could be.
+      const strength = Math.min(1, pose.puff);
+      const phase = (now % 2600) / 2600;
+      const baseX = (CANVAS_W / 2 + pose.dx + 3) * unit;
+      const baseY = (CANVAS_H - 1 + pose.dy - this.figureHeight() * 0.62) * unit;
+      for (let i = 0; i < 3; i++) {
+        const p = (phase + i / 3) % 1;
+        const size = (1 + 0.6 * p) * unit;
+        ctx.fillStyle = `rgba(214, 218, 210, ${(strength * (1 - p) * 0.8).toFixed(3)})`;
+        ctx.fillRect(baseX + p * 1.5 * unit, baseY - p * 4 * unit, size, size);
       }
     }
   }

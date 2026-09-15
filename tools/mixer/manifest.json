@@ -25,7 +25,12 @@
     "flicker": "dash_flash_step_one",
     "rest": "life_rest",
     "sway": "run_wobble",
-    "wince": "hurt_skull"
+    "wince": "hurt_skull",
+    "guard": "weapon_sword_idle",
+    "guardStaff": "weapon_staff_idle",
+    "cower": "duck_pose",
+    "hide": "die_head",
+    "point": "base_press"
   },
   "archetypes": {
     "villager": {

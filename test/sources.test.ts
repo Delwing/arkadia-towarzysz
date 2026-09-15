@@ -5,6 +5,7 @@ import {
   BODY_SETTLE_MS,
   HANGOVER_STAGES,
   INTOX_STAGES,
+  PANIC_STAGES,
   stageOf,
   BORED_ACTIVE_MS,
   FATIGUE_SPENT,
@@ -769,5 +770,120 @@ describe('fatigue', () => {
     h.client.emit('gmcp.char.state', { fatigue: 'bardzo' });
     h.client.emit('gmcp.char.state', { fatigue: 9 });
     expect(h.events).toEqual([{ type: 'fatigue' }]);
+  });
+});
+
+describe('fear', () => {
+  const [uneasy, afraid, terrified] = PANIC_STAGES;
+
+  it("cuts the client's own panic bar into three", () => {
+    // panic is 0..4 in the client's bar and defaults to 0.
+    expect(stageOf(0, PANIC_STAGES)).toBe(0);
+    expect(stageOf(uneasy, PANIC_STAGES)).toBe(1);
+    expect(stageOf(afraid, PANIC_STAGES)).toBe(2);
+    expect(stageOf(terrified, PANIC_STAGES)).toBe(3);
+    expect(stageOf(4, PANIC_STAGES)).toBe(3);
+  });
+
+  it('reacts to a deeper stage, not to the number moving', () => {
+    const h = harness();
+    h.client.emit('gmcp.char.state', { panic: 0 });
+    h.client.emit('gmcp.char.state', { panic: uneasy });
+    h.client.emit('gmcp.char.state', { panic: afraid });
+    // Calming down is silent, and re-arms the stage it fell out of.
+    h.client.emit('gmcp.char.state', { panic: 0 });
+    h.client.emit('gmcp.char.state', { panic: afraid });
+    expect(h.events).toEqual([
+      { type: 'panic', level: 1 },
+      { type: 'panic', level: 2 },
+      { type: 'panic', level: 2 },
+    ]);
+  });
+
+  it('takes the first reading as a baseline, so logging in frightened is not a fright', () => {
+    const h = harness();
+    h.client.emit('gmcp.char.state', { panic: 4 });
+    expect(h.events).toEqual([]);
+    h.client.emit('gmcp.char.state', { panic: 0 });
+    h.client.emit('gmcp.char.info', { name: 'Ktosinny', object_num: 77 });
+    h.client.emit('gmcp.char.state', { panic: 4 });
+    expect(h.events).toEqual([]);
+  });
+});
+
+describe('combat', () => {
+  it('reads the two edges of it and nothing in between', () => {
+    const h = harness();
+    // The client re-emits this on every objects frame of a fight.
+    h.client.emit('combatState', true);
+    h.client.emit('combatState', true);
+    h.client.emit('combatState', true);
+    h.client.emit('combatState', false);
+    h.client.emit('combatState', false);
+    expect(h.events).toEqual([
+      { type: 'combat', on: true },
+      { type: 'combat', on: false },
+    ]);
+  });
+
+  it('forgets a fight at a disconnect, so the next one starts a fresh one', () => {
+    const h = harness();
+    h.client.emit('combatState', true);
+    h.client.emit('client.disconnect');
+    h.client.emit('combatState', true);
+    expect(h.events).toEqual([
+      { type: 'combat', on: true },
+      { type: 'combat', on: true },
+    ]);
+  });
+});
+
+describe('the Apocalypse', () => {
+  it('reads the countdown starting and stopping, not every tick of it', () => {
+    const h = harness();
+    // The client ticks this ten times a second.
+    h.client.emit('worldDestructionTimer', 300);
+    h.client.emit('worldDestructionTimer', 299.9);
+    h.client.emit('worldDestructionTimer', 12);
+    h.client.emit('worldDestructionTimer', null);
+    expect(h.events).toEqual([
+      { type: 'apocalypse', on: true },
+      { type: 'apocalypse', on: false },
+    ]);
+  });
+
+  it('ignores a timer that is not a number of seconds', () => {
+    const h = harness();
+    h.client.emit('worldDestructionTimer', undefined);
+    h.client.emit('worldDestructionTimer', 0);
+    expect(h.events).toEqual([]);
+  });
+});
+
+describe('the pipe', () => {
+  it('reads it being lit and going out', () => {
+    const h = harness();
+    h.client.emit('pipeLit', true);
+    h.client.emit('pipeLit', true);
+    h.client.emit('pipeLit', false);
+    expect(h.events).toEqual([
+      { type: 'pipe', on: true },
+      { type: 'pipe', on: false },
+    ]);
+  });
+});
+
+describe('the post', () => {
+  it('reads the line the game prints when a letter arrives', () => {
+    const h = harness();
+    h.client.line('Masz nowa poczte od Dargoth.');
+    expect(h.events).toEqual([{ type: 'mail' }]);
+  });
+
+  it('is not fooled by the rest of what the postbox says', () => {
+    const h = harness();
+    h.client.line('Masz nowa poczte od Dargotha i Delwinga.');
+    h.client.line('Nie masz nowej poczty.');
+    expect(h.events).toEqual([]);
   });
 });

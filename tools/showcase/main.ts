@@ -23,7 +23,7 @@ import {
   type Primitive,
 } from '../../companion/types';
 import { PRIMITIVES } from '../../render/animations';
-import { STANCES } from '../../events/bindings';
+import { guardFor, POSTURE_ORDER, STANCES, stanceFor, type PostureKey } from '../../events/bindings';
 import { AMBIENT_MAX_GAP_MS, AMBIENT_MIN_GAP_MS, LEVEL_SCALE } from '../../companion/ambient';
 import { Animator, PRIMITIVE_DEFS } from '../../render/animator';
 import { buildSheet, frameRect, type LoadedSheet } from '../../render/sheet';
@@ -81,7 +81,7 @@ function nameFor(archetype: Archetype): string {
   for (let i = 0; i < 20_000; i++) {
     const name = `T${i}`;
     const spec = roll(name, 0);
-    if (spec.archetype === archetype && spec.parts.hasWeapon && spec.parts.hairLong) return name;
+    if (spec.archetype === archetype && spec.parts.hairLong) return name;
   }
   return 'T0';
 }
@@ -158,12 +158,43 @@ function applySpec(next: CompanionSpec): void {
   refreshCard();
   log(
     `nowy towarzysz: <i>${spec.name}</i> - ${ARCHETYPE_LABELS[spec.archetype]}, glos ${voiceName(spec.voiceId)}` +
-      `${spec.parts.hasWeapon ? ', z bronia' : ''}${spec.parts.hairLong ? ', dlugie wlosy' : ''}`,
+      `${spec.parts.hairLong ? ', dlugie wlosy' : ''}`,
   );
 }
 
-/** The plugin's own path: resolve, nudge the mood, animate, maybe speak. */
+/**
+ * The postures the client currently says we are in, exactly as `plugin.ts`
+ * keeps them: one per state, and the most urgent of them is what the companion
+ * stands in. Without this, a fight ending by the water would stand them up
+ * rather than sit them back down beside the float.
+ */
+const postures = new Map<PostureKey, Primitive>();
+
+function applyPosture(): void {
+  for (const key of POSTURE_ORDER) {
+    const primitive = postures.get(key);
+    if (primitive) {
+      animator.setStance(primitive);
+      return;
+    }
+  }
+  animator.setStance(null);
+}
+
+/** What an event did to the postures, if anything. */
+function posture(event: GameEvent): void {
+  const next = stanceFor(event);
+  if (next === undefined) return;
+  if (next === null) postures.clear();
+  else if (next.primitive === null) postures.delete(next.key);
+  else postures.set(next.key, next.primitive === 'guard' ? guardFor(spec) : next.primitive);
+  applyPosture();
+  log(`postawa: <i>${animator.currentStance() ?? 'brak'}</i>`);
+}
+
+/** The plugin's own path: posture, resolve, nudge the mood, animate, maybe speak. */
 function fire(event: GameEvent): void {
+  posture(event);
   const reaction = resolve(event);
   if (!reaction) {
     log(`${event.type}: <i>bez reakcji</i>`);
@@ -201,7 +232,7 @@ function refreshSpecPanel(): void {
   const line = el('div');
   line.innerHTML =
     `<b>${spec.name}</b> - ${ARCHETYPE_LABELS[spec.archetype]}, glos: ${voiceName(spec.voiceId)}, ` +
-    `${spec.parts.hasWeapon ? 'z bronia' : 'bez broni'}, ${spec.parts.hairLong ? 'dlugie wlosy' : 'krotkie wlosy'}` +
+    `${spec.parts.hairLong ? 'dlugie wlosy' : 'krotkie wlosy'}` +
     (sheet ? '' : ' <i>(arkusz sie nie zbudowal - rysowana jest postac zastepcza)</i>');
   specBox.appendChild(line);
   const swatches = row();
@@ -275,7 +306,6 @@ function companionPanel(): HTMLDivElement {
   box.appendChild(
     row(
       button('Losowy', () => applySpec(roll(`X${Math.floor(Math.random() * 100000)}`, 0))),
-      button('Bez broni', () => applySpec({ ...spec, parts: { ...spec.parts, hasWeapon: false } })),
       button('Krotkie wlosy', () => applySpec({ ...spec, parts: { ...spec.parts, hairLong: false } })),
     ),
   );
@@ -505,6 +535,33 @@ function eventPanel(): HTMLDivElement {
       button('gem: 2 mithryle (priorytet)', () => fire({ type: 'gem', copper: 2 * COPPER_PER.mithryl })),
       button('gem: grosze', () => fire({ type: 'gem', copper: 12 })),
       button('idle -> drzemka', () => fire({ type: 'idle' })),
+    ),
+  );
+
+  box.appendChild(
+    row(
+      button('panika', () => fire({ type: 'panic', level: 1 })),
+      button('strach', () => fire({ type: 'panic', level: 2 })),
+      button('przerazenie', () => fire({ type: 'panic', level: 3 })),
+      button('poczta', () => fire({ type: 'mail' })),
+    ),
+  );
+
+  box.appendChild(
+    row(
+      button('walka: start', () => fire({ type: 'combat', on: true })),
+      button('walka: koniec', () => fire({ type: 'combat', on: false })),
+      button('fajka: zapalona', () => fire({ type: 'pipe', on: true })),
+      button('fajka: zgasla', () => fire({ type: 'pipe', on: false })),
+    ),
+  );
+
+  box.appendChild(
+    row(
+      button('koniec swiata', () => fire({ type: 'apocalypse', on: true })),
+      button('koniec swiata: odwolany', () => fire({ type: 'apocalypse', on: false })),
+      button('ogluszenie', () => fire({ type: 'stun', on: true })),
+      button('ogluszenie: koniec', () => fire({ type: 'stun', on: false })),
     ),
   );
 

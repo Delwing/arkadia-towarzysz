@@ -13,13 +13,16 @@ import {
   INTENSITY_MAX,
   INTENSITY_MIN,
   MAX_IMPROVE,
+  guardFor,
+  POSTURE_ONLY_EVENT_TYPES,
+  POSTURE_ORDER,
   PRIORITY_CATEGORIES,
   resolve,
   STANCES,
   stanceFor,
   type GameEvent,
 } from '../events/bindings';
-import { CATEGORIES, type Primitive } from '../companion/types';
+import { ARCHETYPES, CATEGORIES, type CompanionSpec, type Primitive } from '../companion/types';
 import { MOOD_MIN } from '../companion/mood';
 import { PRIMITIVES } from '../render/animations';
 import { COPPER_PER } from '../text/coins';
@@ -39,6 +42,11 @@ const SAMPLES: Record<GameEvent['type'], GameEvent> = {
   knowledge: { type: 'knowledge' },
   clear: { type: 'clear', count: CLEAR_MIN_KILLS },
   stun: { type: 'stun', on: true },
+  panic: { type: 'panic', level: 1 },
+  combat: { type: 'combat', on: true },
+  apocalypse: { type: 'apocalypse', on: true },
+  pipe: { type: 'pipe', on: true },
+  mail: { type: 'mail' },
   fishing: { type: 'fishing', state: 'bite' },
   travel: { type: 'travel' },
   transform: { type: 'transform' },
@@ -47,8 +55,14 @@ const SAMPLES: Record<GameEvent['type'], GameEvent> = {
   temper: { type: 'temper' },
 };
 
-/** Every event the client can actually produce - which is all of them bar the plugin's own. */
-const CLIENT_EVENT_TYPES = GAME_EVENT_TYPES.filter((type) => !SILENT_EVENT_TYPES.includes(type));
+/**
+ * Every event the client can actually produce, and that is meant to produce a
+ * reaction: all of them bar the plugin's own and the ones that are nothing but
+ * a posture.
+ */
+const CLIENT_EVENT_TYPES = GAME_EVENT_TYPES.filter(
+  (type) => !SILENT_EVENT_TYPES.includes(type) && !POSTURE_ONLY_EVENT_TYPES.includes(type),
+);
 
 describe('bindings', () => {
   it('every client event maps to a valid primitive and category', () => {
@@ -119,11 +133,12 @@ describe('bindings', () => {
     expect(resolve({ type: 'gem', copper: 2 * COPPER_PER.mithryl })!.category).toBe('gemGood');
   });
 
-  it('only a death, a niebotyczne, a two-mithryl stone and a przeobrazenie are priority', () => {
+  it('only a death, a niebotyczne, a two-mithryl stone, a przeobrazenie and the Apocalypse are priority', () => {
     expect(resolve({ type: 'death' })!.priority).toBe(true);
     expect(resolve({ type: 'improve', from: 14, to: MAX_IMPROVE })!.priority).toBe(true);
     expect(resolve({ type: 'gem', copper: GEM_PRIORITY_COPPER })!.priority).toBe(true);
     expect(resolve({ type: 'transform' })!.priority).toBe(true);
+    expect(resolve({ type: 'apocalypse', on: true })!.priority).toBe(true);
 
     // An ordinary good stone is a good stone, not an announcement.
     expect(GEM_PRIORITY_COPPER).toBe(2 * COPPER_PER.mithryl);
@@ -132,7 +147,9 @@ describe('bindings', () => {
     expect(ordinary.priority).toBe(false);
 
     for (const type of CLIENT_EVENT_TYPES) {
-      if (type === 'death' || type === 'improve' || type === 'gem' || type === 'transform') continue;
+      if (type === 'death' || type === 'improve' || type === 'gem' || type === 'transform' || type === 'apocalypse') {
+        continue;
+      }
       expect(resolve(SAMPLES[type])!.priority, type).toBeFalsy();
     }
     expect(resolve({ type: 'improve', from: 5, to: 6 })!.priority).toBeFalsy();
@@ -145,6 +162,7 @@ describe('bindings', () => {
         resolve({ type: 'improve', from: 14, to: MAX_IMPROVE }),
         resolve({ type: 'gem', copper: GEM_PRIORITY_COPPER }),
         resolve({ type: 'transform' }),
+        resolve({ type: 'apocalypse', on: true }),
       ].map((reaction) => reaction!.category),
     );
     expect([...marked].sort()).toEqual([...PRIORITY_CATEGORIES].sort());
@@ -314,16 +332,61 @@ describe('drink', () => {
 
 describe('stances', () => {
   it('sits the companion down for a cast and stands them up afterwards', () => {
-    expect(stanceFor({ type: 'fishing', state: 'waiting' })).toBe('watch');
+    expect(stanceFor({ type: 'fishing', state: 'waiting' })).toEqual({ key: 'fishing', primitive: 'watch' });
     // The bite happens sitting down, so it leaves the sitting alone.
     expect(stanceFor({ type: 'fishing', state: 'bite' })).toBeUndefined();
-    expect(stanceFor({ type: 'fishing', state: 'catch' })).toBeNull();
-    expect(stanceFor({ type: 'fishing', state: 'done' })).toBeNull();
+    expect(stanceFor({ type: 'fishing', state: 'catch' })).toEqual({ key: 'fishing', primitive: null });
+    expect(stanceFor({ type: 'fishing', state: 'done' })).toEqual({ key: 'fishing', primitive: null });
   });
 
   it('holds a stun for as long as the client says it lasts', () => {
-    expect(stanceFor({ type: 'stun', on: true })).toBe('stun');
-    expect(stanceFor({ type: 'stun', on: false })).toBeNull();
+    expect(stanceFor({ type: 'stun', on: true })).toEqual({ key: 'stun', primitive: 'stun' });
+    expect(stanceFor({ type: 'stun', on: false })).toEqual({ key: 'stun', primitive: null });
+  });
+
+  it('draws a weapon for a fight and puts it away afterwards, and says nothing either way', () => {
+    expect(stanceFor({ type: 'combat', on: true })).toEqual({ key: 'combat', primitive: 'guard' });
+    expect(stanceFor({ type: 'combat', on: false })).toEqual({ key: 'combat', primitive: null });
+    expect(resolve({ type: 'combat', on: true })).toBeNull();
+    expect(resolve({ type: 'combat', on: false })).toBeNull();
+  });
+
+  it('hides for the Apocalypse until it stops counting', () => {
+    expect(stanceFor({ type: 'apocalypse', on: true })).toEqual({ key: 'apocalypse', primitive: 'hide' });
+    expect(stanceFor({ type: 'apocalypse', on: false })).toEqual({ key: 'apocalypse', primitive: null });
+  });
+
+  it('marks a pipe rather than sitting it out, because a lit pipe travels', () => {
+    expect(stanceFor({ type: 'pipe', on: true })).toBeUndefined();
+    expect(stanceFor({ type: 'pipe', on: false })).toBeUndefined();
+    expect(resolve({ type: 'pipe', on: true })!.primitive).toBe('smoke');
+    expect(resolve({ type: 'pipe', on: false })).toBeNull();
+  });
+
+  it('ranks the postures so the more urgent state wins', () => {
+    // One key per state, every state named, and a stun above all of them: a
+    // companion who cannot stand up is not holding a sword.
+    expect([...POSTURE_ORDER].sort()).toEqual(['apocalypse', 'combat', 'fishing', 'stun']);
+    expect(POSTURE_ORDER[0]).toBe('stun');
+    expect(POSTURE_ORDER.indexOf('apocalypse')).toBeLessThan(POSTURE_ORDER.indexOf('combat'));
+    expect(POSTURE_ORDER.indexOf('combat')).toBeLessThan(POSTURE_ORDER.indexOf('fishing'));
+  });
+
+  it('arms every companion, and the robed ones with a staff', () => {
+    const spec = (archetype: CompanionSpec['archetype'], hasWeapon: boolean): CompanionSpec => ({
+      archetype,
+      name: 'Test',
+      voiceId: 'giermek',
+      palette: { skin: '#000000', hair: '#000000', armour: '#000000', belt: '#000000', legs: '#000000', weapon: null },
+      parts: { hairLong: false, hasWeapon },
+    });
+    expect(guardFor(spec('wizard', true))).toBe('guardStaff');
+    expect(guardFor(spec('magician', false))).toBe('guardStaff');
+    expect(guardFor(spec('goblin', true))).toBe('guard');
+    // The roll's own `hasWeapon` does not decide this any more: everybody has
+    // something to draw.
+    expect(guardFor(spec('ogre', false))).toBe('guard');
+    for (const archetype of ARCHETYPES) expect(STANCES).toContain(guardFor(spec(archetype, true)));
   });
 
   it('ends whatever posture a death interrupted', () => {
@@ -331,8 +394,9 @@ describe('stances', () => {
   });
 
   it('leaves the posture alone for everything else', () => {
-    for (const type of CLIENT_EVENT_TYPES) {
-      if (type === 'fishing' || type === 'stun' || type === 'death') continue;
+    const postural = ['fishing', 'stun', 'death', 'combat', 'apocalypse'];
+    for (const type of GAME_EVENT_TYPES) {
+      if (postural.includes(type)) continue;
       expect(stanceFor(SAMPLES[type]), type).toBeUndefined();
     }
   });
@@ -344,7 +408,7 @@ describe('stances', () => {
     }
   });
 
-  it('STANCES covers every posture stanceFor can ask for', () => {
+  it('STANCES covers every posture stanceFor and guardFor can ask for', () => {
     const asked = new Set<Primitive>();
     const every: GameEvent[] = [
       ...GAME_EVENT_TYPES.map((type) => SAMPLES[type]),
@@ -353,11 +417,30 @@ describe('stances', () => {
       { type: 'fishing', state: 'done' },
       { type: 'stun', on: true },
       { type: 'stun', on: false },
+      { type: 'combat', on: false },
+      { type: 'apocalypse', on: false },
     ];
     for (const event of every) {
-      const stance = stanceFor(event);
-      if (stance) asked.add(stance);
+      const posture = stanceFor(event);
+      if (posture && posture.primitive) asked.add(posture.primitive);
+    }
+    // The generic `guard` is swapped for the companion's own weapon on the way
+    // to the animator, so every weapon it can name is a posture too.
+    for (const archetype of ARCHETYPES) {
+      asked.add(
+        guardFor({
+          archetype,
+          name: 'Test',
+          voiceId: 'giermek',
+          palette: { skin: '#000000', hair: '#000000', armour: '#000000', belt: '#000000', legs: '#000000', weapon: null },
+          parts: { hairLong: false, hasWeapon: true },
+        }),
+      );
     }
     expect([...asked].sort()).toEqual([...STANCES].sort());
+  });
+
+  it('GAME_EVENT_TYPES names every event there is', () => {
+    expect([...GAME_EVENT_TYPES].sort()).toEqual(Object.keys(SAMPLES).sort());
   });
 });

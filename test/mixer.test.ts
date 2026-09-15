@@ -120,7 +120,18 @@ describe('every animation against the art it plays', () => {
     // Every stance outlasts its clip too: a posture is held for as long as the
     // thing it stands for lasts, and a loop that turns over three times a
     // second reads as a twitch rather than as waiting.
-    const longer = new Set<Primitive>(['walk', 'rest', 'warp', 'sway', 'wince', 'stun', 'watch', 'shift']);
+    const longer = new Set<Primitive>([
+      'walk',
+      'rest',
+      'warp',
+      'sway',
+      'wince',
+      'stun',
+      'watch',
+      'smoke',
+      'shift',
+      'cower',
+    ]);
     for (const primitive of PRIMITIVES) {
       if (primitive === 'idle' || longer.has(primitive)) continue;
       const clip = MIXER_CLIPS[clipOf(primitive)] as MixerClip;
@@ -153,6 +164,29 @@ describe('every animation against the art it plays', () => {
     }
     const seated = Array.from({ length: clip.frames.length - 3 }, (_, i) => i + 2);
     expect([...seen].sort((a, b) => a - b)).toEqual(seated);
+  });
+
+  it('takes the pipe down and back up again, smoking only in between', () => {
+    // A lit pipe travels: the companion marks it and gets up, rather than
+    // being sat down for the quarter of an hour it burns. So unlike the
+    // fishing stance this plays the whole clip - down, sitting, up - and the
+    // puff is what tells the two apart. A companion who streamed smoke
+    // without pause would be on fire rather than smoking.
+    const clip = MIXER_CLIPS[clipOf('smoke')] as MixerClip;
+    const frame = (t: number) => frameIndex(PRIMITIVE_DEFS.smoke.pose(t, 1, basePose()).frame.phase, clip.frames.length);
+    expect(frame(0)).toBe(0);
+    expect(frame(0.5)).toBeGreaterThan(1);
+    expect(frame(0.5)).toBeLessThan(clip.frames.length - 1);
+    expect(frame(0.999)).toBe(clip.frames.length - 1);
+
+    let most = 0;
+    for (let t = 0; t <= 1; t += 0.002) most = Math.max(most, PRIMITIVE_DEFS.smoke.pose(t, 1, basePose()).puff);
+    expect(most).toBeGreaterThan(0.9);
+    // No smoke on the way down or on the way up, and none from anything else.
+    expect(PRIMITIVE_DEFS.smoke.pose(0.02, 1, basePose()).puff).toBe(0);
+    expect(PRIMITIVE_DEFS.smoke.pose(0.95, 1, basePose()).puff).toBe(0);
+    expect(PRIMITIVE_DEFS.watch.pose(0.5, 1, basePose()).puff).toBe(0);
+    expect(PRIMITIVE_DEFS.rest.pose(0.5, 1, basePose()).puff).toBe(0);
   });
 });
 

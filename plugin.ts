@@ -16,7 +16,7 @@
 
 import type { PluginApi, PluginInfo } from '@arkadia/plugin-types';
 
-import type { Category, PersistedState } from './companion/types';
+import type { Category, PersistedState, Primitive } from './companion/types';
 import { advance, bucket, bucketLabel, hold, nudge, set as setMood } from './companion/mood';
 import { bandOf, isStale, rollTemper, temperLabel } from './companion/temper';
 import { load, pickStorage, save, type KeyValueStorage } from './companion/state';
@@ -27,7 +27,14 @@ import { buildSheet, type LoadedSheet } from './render/sheet';
 import { Chip } from './ui/chip';
 import { Bubble } from './ui/bubble';
 import { AMBIENT_LABELS, buildCompanionCard, type CardHandlers, type CardView } from './ui/card';
-import { resolve, stanceFor, type GameEvent } from './events/bindings';
+import {
+  guardFor,
+  POSTURE_ORDER,
+  resolve,
+  stanceFor,
+  type GameEvent,
+  type PostureKey,
+} from './events/bindings';
 import { attachSources, BORED_AFTER_MS, readGmcpGender, type Sources } from './events/sources';
 import { applyGender } from './voice/gender';
 import { coinsToCopper } from './text/coins';
@@ -117,6 +124,14 @@ class Towarzysz {
 
   private characterName: string | null = null;
   private state: PersistedState | null = null;
+  /**
+   * Every state the client currently says the character is in, one entry per
+   * key. The animator holds one posture at a time, so these are kept here and
+   * the most urgent of them (`POSTURE_ORDER`) is what the companion stands in:
+   * a fight that ends while the pipe is still lit gives the pipe back rather
+   * than the footer.
+   */
+  private readonly postures = new Map<PostureKey, Primitive>();
   private saveTimer: ReturnType<typeof setTimeout> | null = null;
   private greetTimer: ReturnType<typeof setTimeout> | null = null;
   private cardTimer: ReturnType<typeof setInterval> | null = null;
@@ -165,6 +180,7 @@ class Towarzysz {
         onDisconnect: () => {
           this.connected = false;
           // Whatever they were in the middle of, it is not happening now.
+          this.postures.clear();
           this.animator.setStance(null);
           this.flushSave();
         },
@@ -271,6 +287,7 @@ class Towarzysz {
     }
     this.speaker.setGlobalCooldown(state.settings.globalCooldownMs);
     this.animator.setAmbientLevel(state.settings.ambientLevel);
+    this.postures.clear();
     this.animator.setStance(null);
     this.animator.wake();
     this.applySpec();
@@ -321,8 +338,7 @@ class Towarzysz {
     if (!state) return;
     // The posture first: some events change only that, and a reaction of their
     // own would be a second thing happening where there was one.
-    const stance = stanceFor(event);
-    if (stance !== undefined) this.animator.setStance(stance);
+    this.posture(stanceFor(event));
     const reaction = resolve(event);
     if (!reaction) return;
     const now = Date.now();
@@ -350,6 +366,41 @@ class Towarzysz {
     this.say(line);
 
     this.scheduleSave();
+  }
+
+  /**
+   * Take what `stanceFor` said about an event and stand the companion in
+   * whatever is now the most urgent of the states they are in. `undefined`
+   * leaves them alone, `null` drops the lot - a death ends everything.
+   */
+  private posture(posture: ReturnType<typeof stanceFor>): void {
+    if (posture === undefined) return;
+    if (posture === null) this.postures.clear();
+    else if (posture.primitive === null) this.postures.delete(posture.key);
+    else this.postures.set(posture.key, this.weapon(posture.primitive));
+    this.applyPosture();
+  }
+
+  /** Which of the postures held is the one they stand in. */
+  private applyPosture(): void {
+    for (const key of POSTURE_ORDER) {
+      const primitive = this.postures.get(key);
+      if (primitive) {
+        this.animator.setStance(primitive);
+        return;
+      }
+    }
+    this.animator.setStance(null);
+  }
+
+  /**
+   * The guard `stanceFor` asks for is the generic one; which weapon actually
+   * comes out is the companion's own business, and only this class knows who
+   * the companion is.
+   */
+  private weapon(primitive: Primitive): Primitive {
+    const spec = this.state?.spec;
+    return primitive === 'guard' && spec ? guardFor(spec) : primitive;
   }
 
   /**

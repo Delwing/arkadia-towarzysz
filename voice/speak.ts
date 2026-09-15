@@ -78,6 +78,21 @@ export const CATEGORY_RULES: Record<Category, CategoryRule> = {
   // Being stunned is not the moment for a speech, and it repeats inside one
   // fight; the animation carries it and the line is the rare aside.
   stun: { probability: 0.15, cooldownMs: 240_000 },
+  // Fear climbs a stage at a time and rarely gets past the first, so half of
+  // them are worth a word - but it climbs inside a fight, where the companion
+  // has plenty else to say, and the cooldown is what keeps it an aside.
+  panic: { probability: 0.5, cooldownMs: 240_000 },
+  // The world ending is announced once and counted down from there; the
+  // countdown is not news, the announcement is. It always speaks, through the
+  // global cooldown, and the cooldown here only stops the reminder lines the
+  // game prints on the way down getting a second one.
+  apocalypse: { probability: 1, cooldownMs: 300_000 },
+  // A pipe is a quarter of an hour of sitting, so one remark as it is lit and
+  // nothing else: the sitting itself says the rest.
+  pipe: { probability: 0.5, cooldownMs: 600_000 },
+  // Mail arrives a few times an evening at most, and a companion who points at
+  // the letter and says nothing is a companion pointing at nothing.
+  mail: { probability: 0.6, cooldownMs: 180_000 },
   // Fishing is long and quiet, so the companion may talk through more of it
   // than they would through a fight - but a bite is every few minutes and the
   // fish itself is the event worth a word.

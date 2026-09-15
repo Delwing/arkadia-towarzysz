@@ -11,7 +11,7 @@
  * afterwards. That is `stanceFor`, at the bottom of this file.
  */
 
-import type { Category, Primitive } from '../companion/types';
+import type { Category, CompanionSpec, Primitive } from '../companion/types';
 import { MOOD_MIN } from '../companion/mood';
 import { COPPER_PER } from '../text/coins';
 
@@ -50,6 +50,32 @@ export type GameEvent =
   | { type: 'clear'; count: number }
   /** Stunned, and later not. A state, not a moment: see `stanceFor`. */
   | { type: 'stun'; on: boolean }
+  /**
+   * Fear. `level` is the stage of `Char.State.panic` just crossed, 1..3, read
+   * the way the drink is: only a crossing upward, never the number moving.
+   */
+  | { type: 'panic'; level: number }
+  /**
+   * In a fight, and later not. The client works this out from its own combat
+   * detection, and it is a state rather than a moment: nothing but the posture
+   * comes of it, because a companion who announced every fight would announce
+   * most of the evening.
+   */
+  | { type: 'combat'; on: boolean }
+  /**
+   * The Apocalypse: the client is counting the minutes to the world being
+   * destroyed, or has stopped counting. A state with an announcement at the
+   * front of it.
+   */
+  | { type: 'apocalypse'; on: boolean }
+  /**
+   * A pipe lit, and later out. The lighting is a moment and the going out is
+   * nothing at all: a lit pipe travels, so the companion marks it with a sit
+   * and a couple of drags rather than staying down for it.
+   */
+  | { type: 'pipe'; on: boolean }
+  /** Somebody wrote to you. */
+  | { type: 'mail' }
   /**
    * Fishing, as the client's own tracker sees it. `waiting` is the float on the
    * water, `bite` the line going tight, `catch` the fish landed and `done` the
@@ -91,15 +117,30 @@ export const GAME_EVENT_TYPES: readonly GameEventType[] = [
   'knowledge',
   'clear',
   'stun',
+  'panic',
+  'combat',
+  'apocalypse',
+  'pipe',
+  'mail',
   'fishing',
   'travel',
   'transform',
   'idle',
   'bored',
+  'temper',
 ];
 
 /** The events that are the plugin's own, not the client's; `resolve` declines them. */
 export const SILENT_EVENT_TYPES: readonly GameEventType[] = ['temper'];
+
+/**
+ * Events that are nothing but a posture: `resolve` declines them and
+ * `stanceFor` is the whole of what they do. Being in a fight is the one so far,
+ * and it is the clearest case there is - the client says it at the start of
+ * every fight and at the end of every fight, which is far too often to be
+ * remarked on and exactly often enough to be stood differently.
+ */
+export const POSTURE_ONLY_EVENT_TYPES: readonly GameEventType[] = ['combat'];
 
 export interface Reaction {
   primitive: Primitive;
@@ -131,7 +172,7 @@ export interface Reaction {
  * Every category `resolve` can mark priority. The settings panel lists these
  * so the exemption is not invisible; a test keeps the list honest.
  */
-export const PRIORITY_CATEGORIES: readonly Category[] = ['death', 'improveMax', 'gemGood', 'transform'];
+export const PRIORITY_CATEGORIES: readonly Category[] = ['death', 'improveMax', 'gemGood', 'transform', 'apocalypse'];
 
 export const MOOD = {
   kill: 0.04,
@@ -153,6 +194,15 @@ export const MOOD = {
   knowledge: 0.12,
   clear: 0.12,
   stun: -0.12,
+  // Fear is the one thing on this list the game meters for us and nobody
+  // enjoys: it is scaled by the stage in `resolve`, so a first fright costs
+  // less than being out of your wits.
+  panic: -0.12,
+  // The world ending is not the player's fault and not their loss, but it is
+  // not nothing either: the companion spends the last minutes under their hat.
+  apocalypse: -0.1,
+  pipe: 0.06,
+  mail: 0.05,
   fishBite: 0.03,
   fishCatch: 0.12,
   travel: 0.04,
@@ -349,6 +399,41 @@ export function resolve(event: GameEvent): Reaction | null {
       // The end of it is a posture returning to normal, not news.
       if (!event.on) return null;
       return { primitive: 'stun', intensity: 1, category: 'stun', moodDelta: MOOD.stun };
+    case 'panic': {
+      const level = Math.min(3, Math.max(1, Math.floor(event.level) || 1));
+      return {
+        primitive: 'cower',
+        intensity: clampIntensity(0.9 + (level - 1) * 0.7),
+        category: 'panic',
+        moodDelta: MOOD.panic * (0.8 + (level - 1) * 0.4),
+      };
+    }
+    // Being in a fight is a posture and nothing else; see
+    // `POSTURE_ONLY_EVENT_TYPES`.
+    case 'combat':
+      return null;
+    case 'apocalypse':
+      // The countdown ending is the posture being given back - either the world
+      // was destroyed, in which case nobody is listening, or the Rider changed
+      // his mind, which the game does not announce.
+      if (!event.on) return null;
+      return {
+        primitive: 'hide',
+        intensity: 1,
+        category: 'apocalypse',
+        moodDelta: MOOD.apocalypse,
+        // Once a day at most, and the loudest thing the client ever says. If a
+        // run of hits were allowed to swallow it, the exemption would have no
+        // purpose at all.
+        priority: true,
+      };
+    case 'pipe':
+      // Lighting it is the moment. It going out, a quarter of an hour and
+      // several rooms later, is nothing anybody noticed.
+      if (!event.on) return null;
+      return { primitive: 'smoke', intensity: 1, category: 'pipe', moodDelta: MOOD.pipe };
+    case 'mail':
+      return { primitive: 'point', intensity: 1, category: 'mail', moodDelta: MOOD.mail };
     case 'fishing':
       switch (event.state) {
         case 'bite':
@@ -379,32 +464,74 @@ export function resolve(event: GameEvent): Reaction | null {
 }
 
 /**
- * The posture an event leaves the companion in: a primitive to hold, `null` to
- * stand them up again, `undefined` to leave them as they are.
+ * Every posture `stanceFor` can put the companion in. The showcase lists these
+ * so a stance can be looked at for as long as it takes to judge one; a test
+ * keeps the list honest against `stanceFor` and `guardFor`.
+ */
+export const STANCES: readonly Primitive[] = ['watch', 'stun', 'guard', 'guardStaff', 'hide'];
+
+/**
+ * What a posture stands for. One key per state the client reports, because
+ * they overlap: a fight can start while the float is on the water, and be
+ * interrupted in turn by the end of the world. Whoever holds these keeps one
+ * per key and stands the companion in the most urgent of them
+ * (`POSTURE_ORDER`), so that a fight ending by the water sits them back down
+ * rather than standing them up.
+ */
+export type PostureKey = 'stun' | 'apocalypse' | 'combat' | 'fishing';
+
+/**
+ * Most urgent first. A stun is brief and physical and outranks everything: a
+ * companion who cannot stand up is not holding a sword. Below it, the world
+ * ending beats a fight, and a fight beats waiting on a float - which is the
+ * order in which a player would stop doing one to do the other.
+ */
+export const POSTURE_ORDER: readonly PostureKey[] = ['stun', 'apocalypse', 'combat', 'fishing'];
+
+export interface Posture {
+  key: PostureKey;
+  /** The animation to hold, or `null`: whatever this key stood for is over. */
+  primitive: Primitive | null;
+}
+
+/**
+ * The posture an event leaves the companion in: a key and what to hold for it,
+ * `null` to drop every posture at once, `undefined` to leave them all alone.
  *
  * Separate from `resolve` because a posture is not a reaction. Sitting down by
  * the water is not news and says nothing; the stun that is over is only the end
  * of one. What they do about an event and what they are left doing afterwards
  * are two questions, and a stance outlives the animation that announced it.
  */
-/**
- * Every posture `stanceFor` can put the companion in. The showcase lists these
- * so a stance can be looked at for as long as it takes to judge one; a test
- * keeps the list honest against `stanceFor`.
- */
-export const STANCES: readonly Primitive[] = ['watch', 'stun'];
-
-export function stanceFor(event: GameEvent): Primitive | null | undefined {
+export function stanceFor(event: GameEvent): Posture | null | undefined {
   switch (event.type) {
     case 'stun':
-      return event.on ? 'stun' : null;
+      return { key: 'stun', primitive: event.on ? 'stun' : null };
     case 'fishing':
       // The bite happens sitting down, so it leaves the sitting alone.
-      return event.state === 'waiting' ? 'watch' : event.state === 'bite' ? undefined : null;
+      if (event.state === 'bite') return undefined;
+      return { key: 'fishing', primitive: event.state === 'waiting' ? 'watch' : null };
+    case 'combat':
+      // `guard` is the generic answer; which weapon - or none at all - is
+      // `guardFor`, because that is the roll's business and not the event's.
+      return { key: 'combat', primitive: event.on ? 'guard' : null };
+    case 'apocalypse':
+      return { key: 'apocalypse', primitive: event.on ? 'hide' : null };
     // Whatever they were in the middle of, they are not in the middle of it now.
     case 'death':
       return null;
     default:
       return undefined;
   }
+}
+
+/**
+ * Which guard a companion stands in. Everybody has something to draw - a
+ * companion who stood through a fight with empty hands read as a companion who
+ * had not noticed it - so the only question is what: the two robed archetypes
+ * lean on a staff, everybody else brings out the sword the `lunge` already
+ * swings.
+ */
+export function guardFor(spec: CompanionSpec): Primitive {
+  return spec.archetype === 'wizard' || spec.archetype === 'magician' ? 'guardStaff' : 'guard';
 }

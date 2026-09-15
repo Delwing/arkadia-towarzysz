@@ -456,6 +456,63 @@ about the client or the registry and had to bend. Each one is easy to revisit.
     only the seated frames of `life_rest`: the clip is the whole business of
     getting down and standing back up, and looping the lot would have the
     companion bob. `shift` is the idle life's `warp` at a reaction's priority.
+12h. **Postures overlap, so they are ranked.** A fight starts while the float
+    is on the water; a fight is interrupted by the end of the world. The
+    animator holds one stance, so `stanceFor` now answers with a
+    `{ key, primitive }` pair - one key per state the client reports - and the
+    plugin keeps a map of them and stands the companion in the most urgent
+    (`POSTURE_ORDER`: stun, Apocalypse, combat, fishing). Before that,
+    whichever state ended last won, which would have stood a companion up by
+    the water because a fight finished. `null` from `stanceFor` still means
+    "drop the lot", which is what a death, a disconnect and a character switch
+    do.
+12i. **Panika** is `Char.State.panic`, the game's own fear meter, 0..4 with the
+    client's "PAN" bar drawn from it. Read exactly like the drink: stages
+    (`PANIC_STAGES`), a baseline on the first reading, only a crossing upward,
+    and calming down silent and re-arming. Most evenings never leave 0, which
+    is why it is worth a reaction - and why it is *not* a priority one: it
+    climbs inside a fight, where the companion has plenty else to say. Half of
+    them get a line, and the animation is `duck_pose` - their single crouch
+    frame - with the tremble ours, decaying, because what passes is the fright
+    and not the crouch.
+12j. **In a fight** is `combatState`, which the client works out from the
+    player's own `attack_num` and re-emits on every objects frame, so only the
+    edges are read. It resolves to no reaction at all: it is a posture and
+    nothing else (`POSTURE_ONLY_EVENT_TYPES`), because a companion who
+    announced every fight would be announcing most of the evening. What it
+    buys is the weapon: the Mixer draws each weapon as its own idle rather than
+    as a layer, so `guard` is `weapon_sword_idle` - the same sword `lunge`
+    swings - and `guardStaff` is `weapon_staff_idle` for the two robed
+    archetypes. `guardFor` picks between them, so the plugin is the only thing
+    that has to know who the companion is. Everybody is armed: the roll's
+    `parts.hasWeapon` was considered for this and dropped, because a companion
+    standing through a fight with empty hands read as one who had not noticed
+    it.
+12k. **The Apocalypse** is `worldDestructionTimer`, which the client starts
+    from the Rider's own warning and then ticks ten times a second, so again
+    only the edges are read. It is the loudest thing the client ever says and
+    happens at most once a day, so the line is priority - and the posture is
+    `die_head`, one of the deaths in their catalogue: it sinks the figure into
+    the floor until nothing shows but the hat and the eyes under it, which is a
+    death to the artist and a companion hiding to us. It holds its last frame
+    like a death does, and the countdown stopping gives the posture back.
+12l. **The pipe** is `pipeLit`, and it is a moment rather than a posture: the
+    companion drops onto the footer, takes two drags and gets up again. It was
+    a stance for about an hour of this work, which was wrong - a pipe burns for
+    a quarter of an hour and the player walks, shops and fights with it lit, so
+    a companion sat down for the duration would be sitting through everything
+    the pipe does not care about. `smoke` borrows the `rest` clip the way
+    `watch` does, but plays it through once - down, sitting, up - and what
+    tells it apart from an ambient rest is a new pose field, `puff`: three
+    pixels of smoke leaving their head between drags, drawn by `ui/chip.ts`
+    next to the sleep marks. One remark as it is lit, and the pipe going out is
+    nothing anybody noticed.
+12m. **Mail** has no client event at all: `scripts/newMail.ts` colours the line
+    and prints it under a `[ POCZTA ]` header without firing anything, so the
+    line is the event (`MAIL_PATTERN`). The sender's name is in it and goes
+    unused - the lines are written once and cannot know who wrote to you. The
+    animation is `base_press`, their arm-out pose, with the lean ours so it
+    reads as pointing at the letter rather than pressing a wall.
 13. **Gems**: the same read-out pattern the client's `/ocenkamienie` uses.
     A stone worth reacting to starts at **1 mithryl** - gold-priced stones are
     common enough to be noise. Low is under 1 gold; in between draws nothing.
@@ -528,7 +585,16 @@ about the client or the registry and had to bend. Each one is easy to revisit.
 20b. Two things have to agree for that to work: the footer handle's own span
     gets `overflow: visible` from `plugin.ts`, and the bubble anchors on
     `chip.anchor` (the canvas) rather than on the chip element, which would
-    put the bubble over the companion's head.
+    measure the name instead of the companion.
+20c. **The bubble stands beside them, not over them.** It used to hang above
+    the canvas, which covered the one thing it was commenting on - and the
+    companion jumps, warps and sits down inside that box. So it goes to the
+    right of the canvas (`BUBBLE_GAP`), lifted by `BUBBLE_LIFT` so its bottom
+    edge clears the name, with the tail on the edge facing them. The footer
+    chip sits at the right-hand end of the row, so "no room on the right" is
+    the ordinary case rather than the exception: it flips to the left side and
+    moves the tail across. Only when neither side fits does it go back to
+    hanging above.
 21. **The chip shows the name and nothing else.** The mood label - `markotnie`
     / `spokojnie` / `radosnie`, adverbs so they fit any companion - is on the
     card and in `/towarzysz status`. In the footer it was a second word nobody

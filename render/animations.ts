@@ -56,6 +56,14 @@ const STUN_MS = 1200;
 /** One seated breath. Slower than the sit was drawn: this is waiting, not fidgeting. */
 const WATCH_MS = 1800;
 /**
+ * A pipe: down, two drags, and up again. Less than half the idle life's rest,
+ * because the player lights a pipe and then goes off walking or fighting with
+ * it - the companion marks the moment rather than settling in for the hour.
+ */
+const SMOKE_MS = 4200;
+/** Long enough to read as fright rather than a stumble, short enough not to be a posture. */
+const COWER_MS = 1600;
+/**
  * The part of `life_rest` that is actually sitting. The clip is the whole
  * business of getting down and up again: the figure is still on its feet
  * through the first two frames and stands back up on the last, so a loop meant
@@ -356,6 +364,102 @@ const SPECS = {
     priority: 1,
     pose(t, _k, base) {
       return { ...base, frame: framePhase('rest', SEATED_FROM + (SEATED_TO - SEATED_FROM) * t) };
+    },
+  },
+  /**
+   * A pipe lit. The companion drops onto the footer next to you, takes two
+   * drags and gets up again - the fishing stance's seated frames, but played
+   * through once rather than held, because a lit pipe is not where the evening
+   * stops: the player walks off with it, fights with it, and sits down again
+   * when they feel like it.
+   *
+   * The smoke is the only thing that tells this apart from a rest, which is as
+   * it should be - it is the same sitting.
+   */
+  smoke: {
+    clip: 'rest',
+    durationMs: SMOKE_MS,
+    priority: 1,
+    pose(t, _k, base) {
+      // One pass of the clip, stretched over the middle: down through its first
+      // frames, sitting for as long as the smoke lasts, up on its last.
+      const phase =
+        t < 0.12
+          ? SEATED_FROM * span(t, 0, 0.12)
+          : t < 0.86
+            ? SEATED_FROM + (SEATED_TO - SEATED_FROM) * span(t, 0.12, 0.86)
+            : SEATED_TO + (1 - SEATED_TO) * span(t, 0.86, 1);
+      const down = span(t, 0, 0.12) - span(t, 0.86, 1);
+      return {
+        ...base,
+        sy: 1 - 0.07 * down,
+        sx: 1 + 0.04 * down,
+        frame: framePhase('rest', phase),
+        // Two drags, and no smoke on the way down or on the way up.
+        puff: t > 0.16 && t < 0.86 ? Math.max(0, Math.sin(4 * PI * t)) : 0,
+      };
+    },
+  },
+  /**
+   * The weapon comes out. `Char.State.panic` is the game's own fear meter and
+   * `combatState` is the game's own "you are in a fight", and this is the
+   * second of them: a posture held for as long as the fight lasts, so the
+   * sword is drawn when it starts and away when it is over.
+   *
+   * The art is the tool's `weapon_sword_idle` - the same sword `lunge` swings,
+   * at rest - and `guardStaff` is the robed archetypes' version of it. Which of
+   * the two a companion holds is `guardFor` in `events/bindings.ts`.
+   */
+  guard: {
+    priority: 1,
+    pose: (_t, _k, base) => base,
+  },
+  guardStaff: {
+    priority: 1,
+    pose: (_t, _k, base) => base,
+  },
+  /**
+   * Fear: `Char.State.panic` climbing. Their `duck_pose` is a single frame - a
+   * crouch - so the drop into it is theirs and the shaking is ours, decaying
+   * across the animation, because what passes is the fright and not the crouch.
+   */
+  cower: {
+    durationMs: COWER_MS,
+    priority: 3,
+    pose(t, k, base) {
+      const down = t < 0.12 ? easeOut(t / 0.12) : t < 0.82 ? 1 : 1 - (t - 0.82) / 0.18;
+      const shake = Math.sin(t * PI * 13) * (1 - t) * down;
+      return {
+        ...base,
+        dx: base.dx + Math.round(Math.min(k, 2.5) * shake),
+        sy: 1 - 0.03 * down,
+        rot: 0.02 * Math.min(k, 2) * shake,
+      };
+    },
+  },
+  /**
+   * The Apocalypse: the client's countdown to the world being destroyed. Their
+   * `die_head` sinks the figure into the floor until nothing is left but the
+   * hat and a pair of eyes under it, which is a death in their catalogue and a
+   * companion hiding in ours - so it plays once and then stays there, like a
+   * death does, until the countdown stops or the world does.
+   */
+  hide: {
+    holds: true,
+    priority: 4,
+    // Nothing of ours: the frames do the sinking, and the point of the last one
+    // is that it does not move.
+    pose: (_t, _k, base) => base,
+  },
+  /**
+   * Somebody wrote to you. Their `base_press` puts an arm out; the lean into it
+   * is ours, so it reads as pointing at the letter rather than pressing a wall.
+   */
+  point: {
+    priority: 2,
+    pose(t, k, base) {
+      const out = Math.sin(PI * Math.min(1, t / 0.9));
+      return { ...base, dx: base.dx + Math.round(Math.min(k, 2) * out), rot: 0.02 * out };
     },
   },
   /**

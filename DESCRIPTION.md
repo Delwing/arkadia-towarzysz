@@ -2,7 +2,7 @@
 
 Ktos siedzi w stopce i patrzy, jak ci idzie. Pikselowy towarzysz, losowany raz
 na postac - inny wyglad, inne imie, inny glos - reaguje na to, co dzieje sie w
-grze, i od czasu do czasu cos powie w dymku nad stopka. Ma nastroj, ktory
+grze, i od czasu do czasu cos powie w dymku obok siebie. Ma nastroj, ktory
 plynie razem z sesja. Nie ma potrzeb, nie da sie go zaniedbac, nie umrze.
 
 To ma byc towarzystwo, nie obowiazek: mily widok katem oka, latwy do
@@ -16,19 +16,27 @@ zapomnienia, nigdy system, ktory czegos od ciebie chce.
   przegladarki. Nie da sie go wylosowac jeszcze raz - dostajesz tego, ktory ci wypadl.
 - **Reaguje animacja na wszystko** - zabicia, postepy, obrazenia, smierc,
   monety, zakupy, sprzedaz, ocena kamieni, trunki i kac, wiedza, oczyszczona
-  lokacja, ogluszenie, wedkowanie, poklad statku, przeobrazenie, bezczynnosc.
-  Zawsze cos zrobi, rzadko cos powie.
+  lokacja, ogluszenie, panika, wedkowanie, poklad statku, przeobrazenie,
+  fajka, poczta, koniec swiata, bezczynnosc. Zawsze cos zrobi, rzadko cos powie.
+- **Wyciaga bron do walki** - gdy zaczyna sie walka, dobywa broni i stoi z nia
+  do konca; po walce chowa ja z powrotem. Magowie i czarodzieje opieraja sie na
+  kosturze, reszta trzyma miecz - ten sam, ktorym wymachuje przy zabiciu.
 - **Czeka razem z toba** - przy zarzuconej wedce siada obok i siedzi, dopoki
   cos nie wezmie; ogluszony zatacza sie dokladnie tak dlugo, jak dlugo nie
-  mozesz nic zrobic. Reakcja przerwie taka postawe i odda ja z powrotem.
+  mozesz nic zrobic; a gdy Jezdziec Apokalipsy zaczyna liczyc minuty do
+  zniszczenia swiata, chowa sie pod kapelusz i siedzi tam do konca. Reakcja
+  przerwie taka postawe i odda ja z powrotem, a gdy kilka rzeczy dzieje sie
+  naraz, wygrywa ta pilniejsza.
+- **Przysiadzie do fajki** - gdy zapalasz, siada na chwile, pyknie dwa razy i
+  wstaje. Fajka idzie z toba dalej, wiec i towarzysz nie zostaje na siedzaco.
 - **Zyje wlasnym zyciem** - gdy nic sie nie dzieje, co pol minuty przejdzie
   sie po stopce, zamigocze albo zniknie w slupie swiatla i wroci kawalek
   dalej. Nigdy przy tym nic nie mowi i nigdy nie przerywa reakcji.
 - **Powsciagliwosc jest funkcja** - przerwa miedzy kwestiami (domyslnie 45 s),
   osobne przerwy i prawdopodobienstwa na kategorie. Przez dwadziescia zabic
   milczy, przy dwudziestym pierwszym cos rzuci. Ale na smierc, niebotyczne
-  postepy, przeobrazenie i kamien wart co najmniej 2 mithryle odezwie sie nawet
-  w trakcie przerwy - to te chwile, dla ktorych ta reakcja w ogole istnieje.
+  postepy, przeobrazenie, koniec swiata i kamien wart co najmniej 2 mithryle
+  odezwie sie nawet w trakcie przerwy - to te chwile, dla ktorych ta reakcja w ogole istnieje.
   Kamienie przebijaja przerwe najwyzej raz na 10 minut, bo trafiaja sie workami.
 - **Cztery glosy** - Wierny giermek, Zgryzliwy weteran, Ponury wieszcz,
   Maloomowny. Glos losuje sie niezaleznie od wygladu: goblin mowiacy jak
@@ -38,7 +46,7 @@ zapomnienia, nigdy system, ktory czegos od ciebie chce.
   siebie wraca powoli do zera - w jakies dwadziescia minut gry mniej wiecej o
   polowe - ale liczy sie tylko czas przy grze: nastroj, na ktorym konczysz
   wieczor, zastajesz nastepnego dnia.
-- **Nie smieci w oknie gry** - mowi tylko w dymku nad stopka. Nigdy nie drukuje
+- **Nie smieci w oknie gry** - mowi tylko w dymku obok siebie w stopce. Nigdy nie drukuje
   do wyjscia gry.
 
 ## Komendy

@@ -134,10 +134,22 @@ export const HANGOVER_FIELD = 'headache';
  */
 export const FATIGUE_FIELD = 'fatigue';
 export const FATIGUE_SPENT = 8;
+/**
+ * Panika. `Char.State.panic` runs 0 (steady) to 4, and it is the only fear the
+ * game meters for us - the client's own "PAN" bar is drawn from it. Read in
+ * stages like the drink, because there are three things worth saying about
+ * being afraid and four numbers to say them with.
+ *
+ * Rare in practice: most evenings never leave 0, which is exactly why it is
+ * worth a reaction and why the reaction is not a priority one.
+ */
+export const PANIC_FIELD = 'panic';
 /** Thresholds on `intox`, 0..9. */
 export const INTOX_STAGES: readonly [number, number, number] = [1, 4, 7];
 /** Thresholds on `headache`, 0..6. */
 export const HANGOVER_STAGES: readonly [number, number, number] = [1, 3, 5];
+/** Thresholds on `panic`, 0..4. */
+export const PANIC_STAGES: readonly [number, number, number] = [1, 2, 3];
 
 /** Which stage a reading falls in: 0 for none, 1..3 otherwise. */
 export function stageOf(value: number, stages: readonly [number, number, number]): number {
@@ -153,6 +165,14 @@ export function stageOf(value: number, stages: readonly [number, number, number]
  * like, so the one line that means the fish is out of the water is read here.
  */
 export const FISH_CAUGHT_PATTERN = /^Wyciagasz zlapana rybe na powierzchnie\.$/;
+
+/**
+ * A letter. The client colours this line and prints it under a `[ POCZTA ]`
+ * header (`scripts/newMail.ts`) but fires nothing, so the line is the event.
+ * The sender's name is in it and goes unused: the lines are written once and
+ * cannot know who wrote to you.
+ */
+export const MAIL_PATTERN = /^Masz nowa poczte od [A-Za-z]+\.$/;
 
 /** The gem valuation read-out, same pattern the client's own `/ocenkamienie` uses. */
 export const GEM_PATTERN =
@@ -187,6 +207,20 @@ interface UndeclaredEvents {
   'fishing.state': { state?: unknown } | undefined;
   /** Stepped onto, or off, a ship or a coach. */
   'transport.onBoard': boolean | undefined;
+  /**
+   * Whether the character is in a fight. The client works it out from the
+   * player's own `attack_num` in `gmcp.objects.data` and re-emits it on every
+   * frame of it, so only the changes are news.
+   */
+  combatState: boolean | undefined;
+  /**
+   * Seconds left until the world is destroyed, or `null` once it is not being
+   * counted. The client starts this from the Rider's own warning and then ticks
+   * it ten times a second, so - again - only the changes are news.
+   */
+  worldDestructionTimer: number | null | undefined;
+  /** Whether a pipe is lit. */
+  pipeLit: boolean | undefined;
 }
 
 type UndeclaredHandler<K extends keyof UndeclaredEvents> = (payload: UndeclaredEvents[K]) => void;
@@ -287,6 +321,12 @@ export function attachSources(api: PluginApi, handlers: SourceHandlers, options:
    */
   let lastIntoxStage: number | null = null;
   let lastHangoverStage: number | null = null;
+  let lastPanicStage: number | null = null;
+  /** The client's own combat state, so only the changes are read. */
+  let fighting = false;
+  /** Whether the world is being counted down, and whether a pipe is lit. */
+  let doomed = false;
+  let smoking = false;
   /** Whether the last reading had them spent. null while nothing has been read. */
   let lastSpent: boolean | null = null;
   let characterName: string | null = null;
@@ -390,7 +430,22 @@ export function attachSources(api: PluginApi, handlers: SourceHandlers, options:
   const resetBars = (): void => {
     lastIntoxStage = null;
     lastHangoverStage = null;
+    lastPanicStage = null;
     lastSpent = null;
+  };
+
+  /**
+   * Forget every state the companion holds a posture for. A disconnect and a
+   * character switch both mean the same thing - whatever was going on was
+   * somebody else's evening - and both drop the postures at the other end
+   * anyway, so nothing is emitted here: the next reading is a baseline.
+   */
+  const forgetPostures = (): void => {
+    fishingState = null;
+    aboard = false;
+    fighting = false;
+    doomed = false;
+    smoking = false;
   };
 
   const onKill = guard((payload: { killer: 'ME' | 'TEAM' | 'OTHER' }) => {
@@ -445,6 +500,32 @@ export function attachSources(api: PluginApi, handlers: SourceHandlers, options:
     // client also reports follows the boarding by seconds - one stagger per
     // journey is a companion on a deck, two is a companion with a problem.
     if (next) emit({ type: 'travel' });
+  }, onError);
+
+  const onCombat = guard((payload: boolean | undefined) => {
+    const next = payload === true;
+    if (next === fighting) return;
+    fighting = next;
+    emit({ type: 'combat', on: next });
+  }, onError);
+
+  /**
+   * The Rider of the Apocalypse has named the hour. The client ticks the timer
+   * ten times a second and ends it with `null`, so this reads only the two
+   * edges: the counting starting, and it stopping.
+   */
+  const onDoom = guard((payload: number | null | undefined) => {
+    const next = typeof payload === 'number' && payload > 0;
+    if (next === doomed) return;
+    doomed = next;
+    emit({ type: 'apocalypse', on: next });
+  }, onError);
+
+  const onPipe = guard((payload: boolean | undefined) => {
+    const next = payload === true;
+    if (next === smoking) return;
+    smoking = next;
+    emit({ type: 'pipe', on: next });
   }, onError);
 
   /**
@@ -514,6 +595,16 @@ export function attachSources(api: PluginApi, handlers: SourceHandlers, options:
       // getting worse is another, but it ticking down all morning is not.
       if (previous !== null && stage > previous) emit({ type: 'hangover', level: stage });
     }
+    const panic = state?.[PANIC_FIELD];
+    if (typeof panic === 'number') {
+      const stage = stageOf(panic, PANIC_STAGES);
+      const previous = lastPanicStage;
+      lastPanicStage = stage;
+      // Same rule as the drink and the head: the first reading is a baseline,
+      // only a deeper stage is news, and calming down is silent and re-arms the
+      // stage it fell out of.
+      if (previous !== null && stage > previous) emit({ type: 'panic', level: stage });
+    }
     const fatigue = state?.[FATIGUE_FIELD];
     if (typeof fatigue === 'number') {
       const spent = fatigue >= FATIGUE_SPENT;
@@ -538,8 +629,7 @@ export function attachSources(api: PluginApi, handlers: SourceHandlers, options:
       resetBars();
       // Somebody else's evening: their rod, their ship, their aching head.
       endStun();
-      fishingState = null;
-      aboard = false;
+      forgetPostures();
       handlers.onCharacter(name);
     }
   }, onError);
@@ -578,8 +668,7 @@ export function attachSources(api: PluginApi, handlers: SourceHandlers, options:
     clearBodyTimer();
     clearStunTimer();
     stunned = false;
-    fishingState = null;
-    aboard = false;
+    forgetPostures();
     deathReported = false;
     resetBaselines();
     resetBars();
@@ -608,6 +697,9 @@ export function attachSources(api: PluginApi, handlers: SourceHandlers, options:
   listen(api, 'stunEnd', onStunEnd);
   listen(api, 'fishing.state', onFishing);
   listen(api, 'transport.onBoard', onBoard);
+  listen(api, 'combatState', onCombat);
+  listen(api, 'worldDestructionTimer', onDoom);
+  listen(api, 'pipeLit', onPipe);
 
   const passThrough = (fn: (text: string) => void) =>
     guard((line: { text?: string }, matches: RegExpMatchArray) => {
@@ -672,6 +764,14 @@ export function attachSources(api: PluginApi, handlers: SourceHandlers, options:
     TRIGGER_TAG,
   );
   api.triggers.register(
+    MAIL_PATTERN,
+    (line, matches) => {
+      passThrough(() => emit({ type: 'mail' }))(line as unknown as { text?: string }, matches);
+      return line;
+    },
+    TRIGGER_TAG,
+  );
+  api.triggers.register(
     GEM_PATTERN,
     (line, matches) => {
       guard(() => {
@@ -716,6 +816,9 @@ export function attachSources(api: PluginApi, handlers: SourceHandlers, options:
       unlisten(api, 'stunEnd', onStunEnd);
       unlisten(api, 'fishing.state', onFishing);
       unlisten(api, 'transport.onBoard', onBoard);
+      unlisten(api, 'combatState', onCombat);
+      unlisten(api, 'worldDestructionTimer', onDoom);
+      unlisten(api, 'pipeLit', onPipe);
       try {
         api.triggers.removeByTag(TRIGGER_TAG);
       } catch (error) {

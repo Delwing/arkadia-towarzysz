@@ -68,6 +68,14 @@ export type Category =
   | 'clear'
   /** Ogluszenie: the character cannot act, and the companion can see it. */
   | 'stun'
+  /** Panika: the game's own fear meter, climbing. */
+  | 'panic'
+  /** The Apocalypse: the client is counting the minutes to the world ending. */
+  | 'apocalypse'
+  /** A pipe lit, and a companion who sits down for it. */
+  | 'pipe'
+  /** Somebody wrote to you. */
+  | 'mail'
   /** A fish on the line. */
   | 'fishBite'
   /** And the fish out of the water. */
@@ -100,6 +108,10 @@ export const CATEGORIES: readonly Category[] = [
   'knowledge',
   'clear',
   'stun',
+  'panic',
+  'apocalypse',
+  'pipe',
+  'mail',
   'fishBite',
   'fishCatch',
   'travel',

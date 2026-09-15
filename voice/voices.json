@@ -293,6 +293,66 @@
           "Zaraz wrocisz. Zaraz."
         ]
       },
+      "panic": {
+        "spokojnie": [
+          "Boisz sie. Ja tez, ale stoje.",
+          "Spokojnie. Oddychaj. Jestem tu.",
+          "Zblad{les|las}. Co tam widzisz?"
+        ],
+        "zle": [
+          "Strach. Do wszystkiego jeszcze strach.",
+          "Trzymaj sie mnie. Jakos to bedzie."
+        ],
+        "dobrze": [
+          "Bez paniki! Dawal{es|as} rade i gorzej.",
+          "Strach mija. Zawsze mija."
+        ]
+      },
+      "apocalypse": {
+        "spokojnie": [
+          "Koniec swiata. Ja sie chowam, ty rob swoje.",
+          "Jezdziec liczy minuty. Slyszal{es|as} go?",
+          "Swiat sie konczy. Do zobaczenia po drugiej stronie."
+        ],
+        "zle": [
+          "I jeszcze koniec swiata. Piekny dzien.",
+          "Schowam sie pod kapeluszem. Ty tez sie schowaj."
+        ],
+        "dobrze": [
+          "Koniec swiata? To zdazmy jeszcze cos zrobic!",
+          "Szkoda, bylo tak dobrze. No to na razie."
+        ]
+      },
+      "pipe": {
+        "spokojnie": [
+          "Fajka? To siadam obok.",
+          "Dym pachnie domem. Siadam.",
+          "Odpoczynek. Dobrze, ze pamietasz."
+        ],
+        "zle": [
+          "Zapal, moze pomoze. Mnie nie pomaga.",
+          "Siadam. Dzis i tak nic z tego nie bedzie."
+        ],
+        "dobrze": [
+          "Fajka po dobrej robocie. Tak powinno byc.",
+          "Siadam, dym idzie w gore. Piekny wieczor."
+        ]
+      },
+      "mail": {
+        "spokojnie": [
+          "Poczta! Ktos o tobie pamieta.",
+          "List do ciebie. Przeczytasz?",
+          "Listonosz byl. Zobacz, co przyniosl."
+        ],
+        "zle": [
+          "List. Moze to dobre wiesci. Moze.",
+          "Poczta. Przynajmniej ktos sie odezwal."
+        ],
+        "dobrze": [
+          "List! Dzis wszystko idzie dobrze.",
+          "Poczta do ciebie - i to w taki dzien!"
+        ]
+      },
       "fishBite": {
         "spokojnie": [
           "Bierze! Zacinaj!",
@@ -645,6 +705,66 @@
         "dobrze": [
           "Nic to, wytrzesiesz.",
           "Dzwoni ci w glowie? Bywa."
+        ]
+      },
+      "panic": {
+        "spokojnie": [
+          "Trzesa ci sie rece. Widze.",
+          "Strach to dobry doradca. Zly dowodca.",
+          "Bal{es|as} sie? To znaczy, ze myslisz."
+        ],
+        "zle": [
+          "Panika. Brakowalo tylko tego.",
+          "Nie uciekaj. Uciekajacych bija w plecy."
+        ],
+        "dobrze": [
+          "Spokojnie, {mlody|mloda}. Widzialem gorsze rzeczy.",
+          "Serce ci lomocze? To znaczy, ze zyjesz."
+        ]
+      },
+      "apocalypse": {
+        "spokojnie": [
+          "Znowu koniec swiata. Trzeci raz w tym tygodniu.",
+          "Licza minuty. Ja licze do konca.",
+          "Chowaj sie albo stoj. I tak nic to nie zmieni."
+        ],
+        "zle": [
+          "Koniec swiata. Akurat teraz.",
+          "Swiat sie konczy, a ja mialem plany."
+        ],
+        "dobrze": [
+          "Dobry dzien na koniec swiata.",
+          "No to do nastepnego swiata."
+        ]
+      },
+      "pipe": {
+        "spokojnie": [
+          "Fajka. Wreszcie cos madrego.",
+          "Siadaj, pal, nic nie mow. Dobra chwila.",
+          "Dym i cisza. Wiecej nie trzeba."
+        ],
+        "zle": [
+          "Pal, pal. Moze zdymi ten dzien.",
+          "Fajka dnia nie naprawi, ale go skroci."
+        ],
+        "dobrze": [
+          "O, to rozumiem. Siadam obok.",
+          "Dobry dzien, dobry dym."
+        ]
+      },
+      "mail": {
+        "spokojnie": [
+          "Poczta. Ktos czegos od ciebie chce.",
+          "List. Zawsze o czyms przypomina.",
+          "Czytaj, czytaj. Poczekam."
+        ],
+        "zle": [
+          "List. Jakby dzien nie byl dosc ciekawy.",
+          "Poczta. Pewnie znowu prosba."
+        ],
+        "dobrze": [
+          "List w dobry dzien. Moze to nie rachunek.",
+          "Poczta. Otwieraj, ciekawi mnie."
         ]
       },
       "fishBite": {
@@ -1000,6 +1120,66 @@
           "To minie, jak wszystko."
         ]
       },
+      "panic": {
+        "spokojnie": [
+          "Strach wszedl ci pod skore. Zna droge.",
+          "Cos stanelo za toba. Nie odwracaj sie.",
+          "Serce bije szybciej, niz powinno."
+        ],
+        "zle": [
+          "Strach i zla godzina. Znam ten uklad.",
+          "Ciemnosc oddycha razem z toba."
+        ],
+        "dobrze": [
+          "Nawet w dobry dzien cos przestraszy. To nic.",
+          "Strach to tylko cien. Cienie odchodza."
+        ]
+      },
+      "apocalypse": {
+        "spokojnie": [
+          "Jezdziec przemowil. Swiat ma policzone minuty.",
+          "Wszystko sie konczy. Dzis o wyznaczonej godzinie.",
+          "Slysze, jak swiat zwija zagle."
+        ],
+        "zle": [
+          "Koniec swiata, i nawet on przychodzi nie w porze.",
+          "Zapadnie ciemnosc. Nie pierwsza."
+        ],
+        "dobrze": [
+          "Nawet piekny dzien ma koniec. Ten ma godzine.",
+          "Swiat umrze i wroci. My tez."
+        ]
+      },
+      "pipe": {
+        "spokojnie": [
+          "Dym idzie w gore i nie wraca. Jak dni.",
+          "Siadamy. Niech swiat chwile poczeka.",
+          "Fajka: godzina wykradziona losowi."
+        ],
+        "zle": [
+          "Dym zaslania to, co nieuchronne. I dobrze.",
+          "Pal. Gorycz lubi dym."
+        ],
+        "dobrze": [
+          "Dym, wieczor, spokoj. Zapamietaj to.",
+          "Taka chwila warta jest calego dnia."
+        ]
+      },
+      "mail": {
+        "spokojnie": [
+          "List. Slowa przychodza z daleka i zostaja.",
+          "Ktos powierzyl papierowi to, czego nie powiedzial.",
+          "Poczta. Nawet cisza czasem pisze."
+        ],
+        "zle": [
+          "List. Zle wiesci tez chodza poczta.",
+          "Slowa z daleka. Rzadko lekkie."
+        ],
+        "dobrze": [
+          "List w dobry dzien to podwojna wiadomosc.",
+          "Ktos o tobie pamieta. To wiecej, niz mysli."
+        ]
+      },
       "fishBite": {
         "spokojnie": [
           "Cos z glebi odpowiedzialo.",
@@ -1311,6 +1491,58 @@
         ],
         "dobrze": [
           "Minie."
+        ]
+      },
+      "panic": {
+        "spokojnie": [
+          "Strach.",
+          "Spokojnie.",
+          "Oddychaj."
+        ],
+        "zle": [
+          "Zle."
+        ],
+        "dobrze": [
+          "Minie."
+        ]
+      },
+      "apocalypse": {
+        "spokojnie": [
+          "Koniec swiata.",
+          "Chowam sie.",
+          "Juz niedlugo."
+        ],
+        "zle": [
+          "No tak."
+        ],
+        "dobrze": [
+          "Do zobaczenia."
+        ]
+      },
+      "pipe": {
+        "spokojnie": [
+          "Fajka.",
+          "Siadam.",
+          "Dym."
+        ],
+        "zle": [
+          "Pal."
+        ],
+        "dobrze": [
+          "Dobrze."
+        ]
+      },
+      "mail": {
+        "spokojnie": [
+          "Poczta.",
+          "List.",
+          "Czytaj."
+        ],
+        "zle": [
+          "Hm."
+        ],
+        "dobrze": [
+          "Ktos pamieta."
         ]
       },
       "fishBite": {

@@ -42,6 +42,10 @@ export const CATEGORY_LABELS: Record<Category, string> = {
   knowledge: 'Wiedza',
   clear: 'Oczyszczona lokacja',
   stun: 'Ogluszenie',
+  panic: 'Panika',
+  apocalypse: 'Zniszczenie swiata',
+  pipe: 'Fajka',
+  mail: 'Poczta',
   fishBite: 'Branie',
   fishCatch: 'Zlowione ryby',
   travel: 'Podroz',
@@ -201,11 +205,15 @@ function swatches(state: PersistedState): HTMLDivElement {
   return box;
 }
 
-/** Long hair, a weapon: the two rolled details the art actually shows. */
+/**
+ * The rolled details the art actually shows. `parts.hasWeapon` used to be one
+ * of them and is not any more: every companion draws a weapon in a fight now
+ * (see `guardFor`), so saying "bez broni" here would contradict the footer.
+ * The flag is still rolled, because the roll's draws are what decide every
+ * companion in existence and dropping one would hand everybody a new one.
+ */
 function traits(state: PersistedState): string {
-  const parts: string[] = [state.spec.parts.hairLong ? 'dlugie wlosy' : 'krotkie wlosy'];
-  parts.push(state.spec.parts.hasWeapon ? 'z bronia' : 'bez broni');
-  return parts.join(', ');
+  return state.spec.parts.hairLong ? 'dlugie wlosy' : 'krotkie wlosy';
 }
 
 function metLine(state: PersistedState): string {
