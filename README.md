@@ -226,7 +226,7 @@ client event
 | `improve` reaches 15 | `cheer` x2.5 | `improveMax` | +0.45 |
 | `gmcp.char.state.hp` drops (condition index 0..6) | `flinch`, scales with the drop | `hurt` | -0.05 per level |
 | `Umierasz.` (or a `reset` after a respawn, if the line was missed) | `topple` | `death` | -0.35 |
-| `Bierzesz ... monet ...` / `Dostajesz ...` / `wyplaca ci ... monet` | `gulp`, scales with the copper value | `loot` | up to +0.15 |
+| `Bierzesz ... monet z ciala/sterty ...` / `Dostajesz ...` / `wyplaca ci ... monet` | `gulp`, scales with the copper value | `loot` | up to +0.15 |
 | `Kupujesz ...` / `Placisz ...` / `... zgarnia ... monet` / `... odbiera od ciebie ... monet ... w zamian za zakupiony towar` | `slump`, scales with the price when the line gives one | `spend` | 0 |
 | `Sprzedajesz ...` | `gulp` x0.8 - the coins, if any, land separately | `sell` | +0.05 |
 | gem valuation >= 1 mithryl (priority from 2) | `glitter` | `gemGood` | +0.10 |

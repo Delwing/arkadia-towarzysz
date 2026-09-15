@@ -32,8 +32,37 @@ export const BODY_SETTLE_MS = 400;
  */
 export const STUN_CAP_MS = 20_000;
 
-/** Coin-bearing lines. Anything without "monet" in it parses to 0 copper and is ignored. */
-export const LOOT_PATTERNS: RegExp[] = [/^Bierzesz (.+)\.$/, /^Dostajesz (.+)\.$/, /wyplaca ci (.+) monet/];
+/**
+ * Where the money came from, for a `Bierzesz` line. Taking is not earning:
+ * the same verb covers looting a kill and moving your own coins from one bag
+ * to another, and only the first is income.
+ *
+ *   Bierzesz siedem srebrnych monet z ciala gburowatego rudowlosego krasnoluda chaosu.
+ *   Bierzesz siedem mithrylowych monet, wiele zlotych monet, wiele srebrnych
+ *   monet i dziewietnascie miedzianych monet z otwartego prostego skorzanego plecaka.
+ *
+ * The second is a companion gulping over a purse you have been carrying all
+ * evening - and gulping hard, because emptying a bag names bigger numbers than
+ * any single corpse does. So the source has to be a kill: `ciala` or `sterty`,
+ * which are the two the client's own collector takes from
+ * (`itemCollector.ts`'s `formatBodyTarget`), optionally numbered the way it
+ * addresses them ("z 2. ciala").
+ *
+ * This deliberately gives up coins picked up off the ground, which name no
+ * source at all. That is the trade the plugin makes everywhere else too: a
+ * reaction to something that did not happen is worse than a missed one.
+ */
+export const LOOT_SOURCE = /\sze?\s(?:\d+\.\s)?(?:ciala|sterty)\b/;
+
+/**
+ * Coin-bearing lines. Anything without "monet" in it parses to 0 copper and is
+ * ignored, which is what keeps `Bierzesz miecz z ciala ...` quiet.
+ */
+export const LOOT_PATTERNS: RegExp[] = [
+  new RegExp(`^Bierzesz .+${LOOT_SOURCE.source}.*\\.$`),
+  /^Dostajesz (.+)\.$/,
+  /wyplaca ci (.+) monet/,
+];
 /**
  * Spending. The last two are the shopkeeper's side of a purchase - "Usmiechniety
  * dojrzaly mezczyzna drapieznym ruchem zgarnia 9 srebrnych i 30 miedzianych

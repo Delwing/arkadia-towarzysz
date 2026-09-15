@@ -300,6 +300,18 @@ about the client or the registry and had to bend. Each one is easy to revisit.
     straight to the bus - so `events/sources.ts` declares the handful it needs
     in an `UndeclaredEvents` interface and subscribes through a thin `listen`
     helper. Extending the literal upstream would let that go away.
+11a. **Taking is not earning.** `Bierzesz ...` covers looting a kill *and*
+    moving your own coins from one bag to another, and the second is much the
+    louder of the two - emptying a pack names bigger numbers than any single
+    corpse does, so "Bierzesz siedem mithrylowych monet, wiele zlotych monet,
+    ... z otwartego prostego skorzanego plecaka" valued at 168271 copper and
+    drew a maximum-intensity gulp for money that had been in the pack all
+    evening. `LOOT_SOURCE` requires the line to name a kill as the source -
+    `z ciala` or `ze sterty`, the two the client's own `itemCollector.ts` takes
+    from, optionally numbered. Coins picked up off the ground name no source
+    and are given up with the container shuffling; there is nothing in the line
+    to tell those two apart, and the plugin would rather miss one than react to
+    something that did not happen.
 11. **Loot**: triggers on `Bierzesz ...`, `Dostajesz ...` and `... wyplaca ci
     ... monet`, valued via `text/coins.ts` (mithryl 24000, gold 240, silver 12,
     copper 1 - the client's own deposit rates). A full-size haul is 10 gold and

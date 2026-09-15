@@ -245,6 +245,54 @@ describe('money lines', () => {
     h.client.line('Bierzesz zardzewialy miecz z ciala szczura.');
     expect(h.events).toEqual([]);
   });
+
+  it('takes coins off a kill as loot', () => {
+    const h = harness();
+    h.client.line('Bierzesz siedem srebrnych monet z ciala gburowatego rudowlosego krasnoluda chaosu.');
+    expect(h.events).toEqual([{ type: 'loot', copper: 7 * 12 }]);
+  });
+
+  it('takes them off a pile too, and from a numbered body', () => {
+    const h = harness();
+    h.client.line('Bierzesz dwie zlote monety ze sterty roznych przedmiotow.');
+    h.client.line('Bierzesz trzy zlote monety z 2. ciala.');
+    expect(h.events).toEqual([
+      { type: 'loot', copper: 2 * 240 },
+      { type: 'loot', copper: 3 * 240 },
+    ]);
+  });
+
+  it('does not take emptying your own bag for income', () => {
+    // The bug this is here for: `Bierzesz ...` on its own covers moving coins
+    // between your own containers, and a bag holds more than any one corpse -
+    // this line valued at 168271 copper, a maximum-intensity gulp for money
+    // that had been in the pack all evening.
+    const h = harness();
+    h.client.line(
+      'Bierzesz siedem mithrylowych monet, wiele zlotych monet, wiele srebrnych monet i ' +
+        'dziewietnascie miedzianych monet z otwartego prostego skorzanego plecaka.',
+    );
+    h.client.line('Bierzesz zlota monete z otwartej sakwy.');
+    expect(h.events).toEqual([]);
+  });
+
+  it('says nothing about coins that name no source at all', () => {
+    // Ground pickups are given up with the container shuffling: there is
+    // nothing in the line to tell the two apart.
+    const h = harness();
+    h.client.line('Bierzesz siedem srebrnych monet.');
+    expect(h.events).toEqual([]);
+  });
+
+  it('still lets a payment and a gift through, whatever they say', () => {
+    const h = harness();
+    h.client.line('Dostajesz piec zlotych monet.');
+    h.client.line('Gruby karczmarz wyplaca ci 5 zlotych monet.');
+    expect(h.events).toEqual([
+      { type: 'loot', copper: 5 * 240 },
+      { type: 'loot', copper: 5 * 240 },
+    ]);
+  });
 });
 
 describe('detach', () => {
