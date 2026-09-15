@@ -23,23 +23,23 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: '20'
-          # Yarn's cache is not shared between runs here, and that is on
-          # purpose. `@arkadia/plugin-types` is a tarball at a fixed URL that the
-          # extension republishes with a fresh timestamp version - so a fresh
-          # hash, and a fresh cache folder - on every push. There is nothing to
-          # reuse from run to run, and the one time the cache does carry that
-          # folder across it carries a half-written one: yarn fetched it under
-          # the new integrity hash without writing the .yarn-metadata.json it
-          # looks for while linking, and every later run then restored the
-          # broken entry and failed with ENOENT on it. The install is a few
-          # seconds either way.
-          package-manager-cache: false
 
-      # `--update-checksums` is for one dependency. `@arkadia/plugin-types` is a
-      # tarball at a fixed URL, and the extension republishes it with a fresh
-      # timestamp version - so a fresh hash - on every push, whether or not the
-      # types changed. Pinning it in the lockfile would break this build on an
-      # unrelated repository's activity. Everything else stays pinned.
+      # `@arkadia/plugin-types` is a tarball at a fixed URL, and the extension
+      # republishes it - with a fresh timestamp version, and so a fresh hash -
+      # on every push of its own, whether or not the types changed. So the
+      # lockfile pins a version that has usually already been replaced by the
+      # time this runs, and this build would otherwise break on an unrelated
+      # repository's activity.
+      #
+      # `--update-checksums` alone does not cope with it, because it is not only
+      # the checksum that moves: yarn names the cache folder after the *locked*
+      # version, unpacks the newly fetched one under its own, and then fails
+      # looking for a .yarn-metadata.json that was never written under the name
+      # it is reading. Dropping the entry lets yarn resolve this one package
+      # from scratch. Everything else stays pinned by the lockfile.
+      - name: Unpin the types tarball
+        run: sed -i '/^"@arkadia\/plugin-types@/,/^$/d' yarn.lock
+
       - name: Install dependencies
         run: yarn install --update-checksums --network-timeout 100000
 
