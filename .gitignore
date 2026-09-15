@@ -4,5 +4,9 @@ dist/
 .DS_Store
 .idea
 
+# The project locks with yarn, as the CI workflows do. An npm-shaped lockfile
+# here would be a second opinion nothing reads.
+package-lock.json
+
 mixer-preview.png
 tools/mixer/cache/
