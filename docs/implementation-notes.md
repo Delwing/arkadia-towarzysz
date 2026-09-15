@@ -656,7 +656,9 @@ about the client or the registry and had to bend. Each one is easy to revisit.
     - **Heads that leave a face.** The two wear open helmets, coifs and a ranger
       hood; the tool has plenty of closed helms and none of them are used,
       because a companion is a face reacting to your evening. The orc's list lost
-      three heads for the same reason - 194, 195 and 196 covered everything.
+      three heads for the same reason - 194, 195 and 196 covered everything - and
+      head 22 left the knight, which read as a coif until it was drawn and turned
+      out to be a visor with a T-slot where the face should be.
     - **The archer draws a bow** (`guardBow`, `weapon_bow_tall_idle`), which is a
       third answer from `guardFor` next to the sword and the staff. The kill is
       still the sword swing for everybody, as it already was for the staff: the
