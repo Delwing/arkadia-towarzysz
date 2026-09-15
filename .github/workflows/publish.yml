@@ -65,8 +65,11 @@ jobs:
             exit 1
           fi
 
+      # Patrz deploy.yml: @arkadia/plugin-types to tarball spod stalego adresu,
+      # przebudowywany ze swiezym znacznikiem wersji przy kazdym pushu do
+      # klienta, wiec jego suma kontrolna zmienia sie sama z siebie.
       - name: Install dependencies
-        run: yarn install --network-timeout 100000
+        run: yarn install --update-checksums --network-timeout 100000
 
       - name: Typecheck and test
         run: yarn typecheck && yarn test

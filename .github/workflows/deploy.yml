@@ -24,8 +24,13 @@ jobs:
         with:
           node-version: '20'
 
+      # `--update-checksums` is for one dependency. `@arkadia/plugin-types` is a
+      # tarball at a fixed URL, and the extension republishes it with a fresh
+      # timestamp version - so a fresh hash - on every push, whether or not the
+      # types changed. Pinning it in the lockfile would break this build on an
+      # unrelated repository's activity. Everything else stays pinned.
       - name: Install dependencies
-        run: yarn install --network-timeout 100000
+        run: yarn install --update-checksums --network-timeout 100000
 
       - name: Typecheck and test
         run: yarn typecheck && yarn test
