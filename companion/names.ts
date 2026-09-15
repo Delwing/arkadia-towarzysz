@@ -919,8 +919,16 @@ export const MONSTER_NAMES: readonly string[] = [
   'Sep',
 ];
 
+/**
+ * Three human archetypes, one pool. The dithematic Slavic names in it are as
+ * good on a knight as on a peasant - Wladyslaw, Wszeslaw, Zbyslaw are exactly
+ * what a knight in this part of the world is called - and what tells the three
+ * apart is the helmet, the bow and the label, not the name.
+ */
 export const NAME_POOLS: Record<Archetype, readonly string[]> = {
   villager: VILLAGER_NAMES,
+  knight: VILLAGER_NAMES,
+  archer: VILLAGER_NAMES,
   magician: MAGE_NAMES,
   wizard: MAGE_NAMES,
   orc: ORC_NAMES,
@@ -933,6 +941,13 @@ export function namePoolFor(archetype: Archetype): readonly string[] {
   return NAME_POOLS[archetype];
 }
 
+/** Human skin and human hair; the rest get the monster pools. */
 export function isHumanish(archetype: Archetype): boolean {
-  return archetype === 'villager' || archetype === 'magician' || archetype === 'wizard';
+  return (
+    archetype === 'villager' ||
+    archetype === 'knight' ||
+    archetype === 'archer' ||
+    archetype === 'magician' ||
+    archetype === 'wizard'
+  );
 }

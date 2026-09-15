@@ -30,29 +30,101 @@
     "guardStaff": "weapon_staff_idle",
     "cower": "duck_pose",
     "hide": "die_head",
-    "point": "base_press"
+    "point": "base_press",
+    "guardBow": "weapon_bow_tall_idle"
   },
   "archetypes": {
     "villager": {
-      "head": 48
+      "heads": [
+        48,
+        24,
+        33,
+        241,
+        243,
+        245,
+        249,
+        250
+      ]
+    },
+    "knight": {
+      "heads": [
+        1,
+        2,
+        18,
+        19,
+        22
+      ]
+    },
+    "archer": {
+      "heads": [
+        252,
+        267,
+        268,
+        25,
+        27,
+        205
+      ]
     },
     "magician": {
-      "head": 53
+      "heads": [
+        53,
+        35,
+        36,
+        38,
+        47,
+        61
+      ]
     },
     "wizard": {
-      "head": 37
+      "heads": [
+        37,
+        39,
+        42,
+        44,
+        45,
+        46
+      ]
     },
     "monster": {
-      "head": 85
+      "heads": [
+        85,
+        73,
+        74,
+        81,
+        83,
+        86,
+        90
+      ]
     },
     "ogre": {
-      "head": 97
+      "heads": [
+        97,
+        96,
+        98,
+        88,
+        89,
+        100
+      ]
     },
     "orc": {
-      "head": 192
+      "heads": [
+        192,
+        193,
+        49,
+        50,
+        55,
+        56
+      ]
     },
     "goblin": {
-      "head": 120
+      "heads": [
+        120,
+        121,
+        122,
+        123,
+        124,
+        126
+      ]
     }
   }
 }

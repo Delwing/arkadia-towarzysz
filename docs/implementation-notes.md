@@ -645,17 +645,32 @@ about the client or the registry and had to bend. Each one is easy to revisit.
     it there would hand every character a different companion and orphan the
     saved one. `text/properName.ts` does it on the way out instead: the picture's
     bottom line and the line the plugin logs when the character loads.
-23d. **`parts.hairLong` is gone; its draw is not.** The flag survived the move
-    to Mixer art, where a head is one sprite per archetype and hair length is
-    not drawn at all - so the card was announcing a haircut nobody could see,
-    and the showcase had a button for it. The field is out of `CompanionSpec`,
-    out of `isValidSpec` and off the card. What stays is the bare `rng()` where
-    it used to be drawn: the roll is a sequence, and dropping a step from the
-    middle of it would hand every existing companion a different one. Checked
-    by rolling 303 names at two reroll counts before and after - identical.
-    `parts.hasWeapon` is the same kind of survivor and is kept for the same
-    reason (see 12j), but it still decides the weapon colour, so it is a field
-    rather than a burned draw.
+23j. **A knight and an archer, and what they cost.** Two more archetypes, nine
+    in all. The archetype is the first draw of the roll, so a longer list is not
+    a free addition: from this version on, a seed computes a different companion
+    than it did. Nobody loses the one they have - a stored spec is kept as it is
+    (`companion/state.ts`), and 'villager' is still a valid archetype - but the
+    promise that a wiped localStorage returns the same companion holds only for
+    characters first rolled after this. That was the price of the feature and it
+    was paid once, deliberately.
+    - **Heads that leave a face.** The two wear open helmets, coifs and a ranger
+      hood; the tool has plenty of closed helms and none of them are used,
+      because a companion is a face reacting to your evening. The orc's list lost
+      three heads for the same reason - 194, 195 and 196 covered everything.
+    - **The archer draws a bow** (`guardBow`, `weapon_bow_tall_idle`), which is a
+      third answer from `guardFor` next to the sword and the staff. The kill is
+      still the sword swing for everybody, as it already was for the staff: the
+      Mixer draws each weapon as its own clip, and a separate attack per weapon
+      is a bigger change than a stance per weapon.
+    - **Three human archetypes share one name pool.** Wladyslaw, Wszeslaw,
+      Zbyslaw are as knightly as they are peasant; what tells a knight from a
+      villager is the helmet, the bow and the label.
+23k. **"mag" and "czarodziej" were the same word twice.** Both robed, both
+    leaning on a staff, both drawing from the mage name pool, and labelled with
+    two Polish words for one thing - which reads as a mistake on a card whose
+    job is to name what the companion is. The keys are untouched (they are
+    stored), the labels are not: `wizard` is 'mag' and wears the tall pointed
+    hats, `magician` is 'wrozbita' and wears the brimmed ones and the hood.
 23g. **The card stopped crediting anybody.** It carried three lines - the art,
     the Mixer, the two commands - under a card whose whole point is to be small,
     and the CC-BY link the licence actually asks for lives in `DESCRIPTION.md`,
@@ -671,6 +686,41 @@ about the client or the registry and had to bend. Each one is easy to revisit.
     way for a plugin to ask for less; a card capped at 320px left the rest of
     the window empty. It takes the width it is handed now. Making the window fit
     the card instead is a change in the client, not here.
+23e. **One head per archetype became a list, and the freed draw picks from it.**
+    The Mixer carries 333 heads and we were using seven of them, so every
+    villager was the same villager in different colours. Each archetype now
+    names five to eight (`tools/mixer/manifest.json`), the bake packs them all,
+    and `parts.head` - drawn exactly where `hairLong` used to be drawn, so no
+    companion's name, voice or palette moved - says which one. Three things
+    follow:
+    - **The index is stored, not recomputed.** Appending a head to an archetype
+      then leaves the companions who already exist looking as they did; only
+      somebody rolled afterwards can wear it.
+    - **A spec saved before this has no head**, and `companion/state.ts` fills
+      it in from the seed's own rather than rejecting the save - the rule is
+      that losing localStorage must not change the companion, so the stored
+      value and the recomputed one have to agree.
+    - **The roll has to know how many there are**, which only the art knows, so
+      `companion/roll.ts` asks `render/mixer.ts` (`headVariants`). It is the one
+      place the roll looks at the art; the index is taken modulo the list when
+      it is drawn, so a list that shrinks leaves nobody bald.
+23f. **`yarn mixer heads` paints the catalogue in plausible colours and labels
+    every cell.** It used to emit the raw key colours - a green face under a
+    magenta hat, 24 to a row, the index left to arithmetic - which is unusable
+    for the thing it exists for. It now takes a range (`yarn mixer heads out.png
+    240-263`) and writes the index under each head in a 3x5 font, so choosing a
+    list for an archetype is reading the sheet and typing what it says.
+23d. **`parts.hairLong` is gone; its draw is not.** The flag survived the move
+    to Mixer art, where a head is one sprite per archetype and hair length is
+    not drawn at all - so the card was announcing a haircut nobody could see,
+    and the showcase had a button for it. The field is out of `CompanionSpec`,
+    out of `isValidSpec` and off the card. What stays is the bare `rng()` where
+    it used to be drawn: the roll is a sequence, and dropping a step from the
+    middle of it would hand every existing companion a different one. Checked
+    by rolling 303 names at two reroll counts before and after - identical.
+    `parts.hasWeapon` is the same kind of survivor and is kept for the same
+    reason (see 12j), but it still decides the weapon colour, so it is a field
+    rather than a burned draw.
 
 ## Tooling
 

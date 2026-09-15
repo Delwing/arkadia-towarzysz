@@ -13,8 +13,9 @@
  *   yarn mixer list                              what the manifest names
  *   yarn mixer add-anim warp re_warp             one more animation
  *   yarn mixer add-anim topple die_soul die_melt several: the animator picks one
- *   yarn mixer set-head goblin 120               which head an archetype wears
+ *   yarn mixer set-head goblin 120 121 124       which heads an archetype can wear
  *   yarn mixer heads out.png                     contact sheet of all 333 heads
+ *   yarn mixer heads out.png 240-263             just those, bigger
  *   yarn mixer bake                              re-bake from the cache
  *   yarn mixer preview out.png                   contact sheet of what is baked
  *
@@ -119,8 +120,7 @@ async function bake() {
 
   const heads = Object.entries(manifest.archetypes).map(([name, spec]) => ({
     name,
-    index: spec.head,
-    packed: pack(cell(bundle.heads, spec.head, width, height)),
+    worn: spec.heads.map((index) => ({ index, packed: pack(cell(bundle.heads, index, width, height)) })),
   }));
 
   const q = (s) => JSON.stringify(s);
@@ -171,16 +171,25 @@ async function bake() {
   }
   lines.push('};');
   lines.push('');
-  lines.push("/** What each archetype wears, drawn over every frame at that frame's offset. */");
-  lines.push('export const MIXER_HEADS: Record<string, { packed: string; index: number }> = {');
-  for (const head of heads) lines.push(`  ${q(head.name)}: { packed: '${head.packed}', index: ${head.index} },`);
+  lines.push("/**");
+  lines.push(" * What each archetype can wear, drawn over every frame at that frame's offset.");
+  lines.push(" * More than one apiece: the roll picks which of them a companion gets, so a");
+  lines.push(" * village is not seven copies of one head.");
+  lines.push(" */");
+  lines.push('export const MIXER_HEADS: Record<string, readonly { packed: string; index: number }[]> = {');
+  for (const head of heads) {
+    lines.push(`  ${q(head.name)}: [`);
+    for (const worn of head.worn) lines.push(`    { packed: '${worn.packed}', index: ${worn.index} },`);
+    lines.push('  ],');
+  }
   lines.push('};');
   lines.push('');
 
   writeFileSync(OUT, lines.join('\n').replace(/\n/g, '\r\n'));
   const frames = clips.reduce((sum, c) => sum + c.frames.length, 0);
   console.log(
-    `Baked ${clips.length} clips (${frames} frames of ${width}x${height}), ${heads.length} heads, ` +
+    `Baked ${clips.length} clips (${frames} frames of ${width}x${height}), ` +
+      `${heads.reduce((sum, h) => sum + h.worn.length, 0)} heads for ${heads.length} archetypes, ` +
       `${pal.entries.length - 1} palette entries -> render/mixer-art.ts, ${(readFileSync(OUT).length / 1024).toFixed(1)} kB`,
   );
 }
@@ -243,15 +252,143 @@ function compose(bundle, baseColumn, headColumn, headOffset) {
   return out;
 }
 
-async function heads(out = 'mixer-heads.png') {
+/**
+ * Plausible colours for the contact sheets. The art is drawn in key colours -
+ * a green face, a magenta hat - which is unreadable when what you are doing is
+ * choosing between 333 heads, so the sheets are painted in something a
+ * companion could actually be rolled as. Nothing here reaches the plugin.
+ */
+const PREVIEW_COLOURS = {
+  outline: [27, 23, 16],
+  eyes: [30, 30, 30],
+  skin: [224, 172, 126],
+  skin2: [184, 134, 94],
+  item: [74, 44, 23],
+  item2: [51, 32, 15],
+  suit: [74, 90, 122],
+  suit2: [51, 64, 90],
+  more: [176, 184, 192],
+  more2: [138, 146, 154],
+};
+
+/** A 3x5 digit each, so a head can carry the index you would type back in. */
+const DIGITS = {
+  0: '111101101101111',
+  1: '010010010010010',
+  2: '111001111100111',
+  3: '111001111001111',
+  4: '101101111001001',
+  5: '111100111001111',
+  6: '111100111101111',
+  7: '111001001001001',
+  8: '111101111101111',
+  9: '111101111001111',
+};
+
+/** Repaint a key-coloured cell in PREVIEW_COLOURS, their own tolerance included. */
+function inPlausibleColours(bundle, pixels) {
+  const key = (r, g, b) => `${r},${g},${b}`;
+  const slots = new Map(Object.entries(bundle.conf.fromColors).map(([name, [r, g, b]]) => [key(r, g, b), name]));
+  const near = (r, g, b) => {
+    for (let dr = -1; dr <= 1; dr++) {
+      for (let dg = -1; dg <= 1; dg++) {
+        for (let db = -1; db <= 1; db++) {
+          const hit = slots.get(key(r + dr, g + dg, b + db));
+          if (hit) return hit;
+        }
+      }
+    }
+    return null;
+  };
+  for (let i = 0; i + 3 < pixels.length; i += 4) {
+    if (pixels[i + 3] < 128) continue;
+    const slot = near(pixels[i], pixels[i + 1], pixels[i + 2]);
+    const rgb = slot ? PREVIEW_COLOURS[slot] : null;
+    if (!rgb) continue;
+    pixels[i] = rgb[0];
+    pixels[i + 1] = rgb[1];
+    pixels[i + 2] = rgb[2];
+  }
+  return pixels;
+}
+
+/** "12", "40-59", "48,24,33" - what to put on the sheet. */
+function headList(argument, count) {
+  if (!argument) return Array.from({ length: count }, (_, n) => n);
+  const out = [];
+  for (const part of argument.split(',')) {
+    const span = part.match(/^(\d+)-(\d+)$/);
+    if (span) {
+      for (let n = Number(span[1]); n <= Number(span[2]); n++) out.push(n);
+    } else if (part.trim() !== '') {
+      out.push(Number(part));
+    }
+  }
+  return out.filter((n) => Number.isInteger(n) && n >= 0 && n < count);
+}
+
+/**
+ * The catalogue, or a slice of it: every head over the standing frame, painted
+ * in plausible colours and labelled with the index the manifest wants. This is
+ * how an archetype gets its list of heads.
+ */
+async function heads(out = 'mixer-heads.png', which, scaleArg) {
   const manifest = readManifest();
   const bundle = await loadBundle(manifest, CACHE);
   const count = bundle.heads.width / bundle.width;
   const stand = bundle.index.base_stand ?? 0;
-  const cells = [];
-  for (let n = 0; n < count; n++) cells.push(compose(bundle, stand, n, 0));
-  const size = contactSheet(out, cells, 24, bundle.width, bundle.height);
-  console.log(`${out}: ${count} heads, 24 per row (index = row * 24 + column), ${size.w}x${size.h}`);
+  const list = headList(which, count);
+  const scale = Number(scaleArg ?? (list.length > 120 ? 4 : 6));
+  const perRow = Math.min(list.length, 12);
+  const { width, height } = bundle;
+  const labelH = 8;
+  const cellW = width * scale;
+  const cellH = height * scale + labelH;
+  const w = perRow * cellW;
+  const h = Math.ceil(list.length / perRow) * cellH;
+  const data = new Uint8ClampedArray(w * h * 4);
+  for (let i = 0; i + 3 < data.length; i += 4) {
+    data[i] = 0x2b;
+    data[i + 1] = 0x2e;
+    data[i + 2] = 0x34;
+    data[i + 3] = 255;
+  }
+  const put = (x, y, rgb) => {
+    if (x < 0 || y < 0 || x >= w || y >= h) return;
+    const d = (y * w + x) * 4;
+    data[d] = rgb[0];
+    data[d + 1] = rgb[1];
+    data[d + 2] = rgb[2];
+  };
+  list.forEach((index, n) => {
+    const r = Math.floor(n / perRow);
+    const c = n % perRow;
+    const pixels = inPlausibleColours(bundle, compose(bundle, stand, index, 0));
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const at = (y * width + x) * 4;
+        if (pixels[at + 3] < 128) continue;
+        for (let py = 0; py < scale; py++) {
+          for (let px = 0; px < scale; px++) {
+            put(c * cellW + x * scale + px, r * cellH + y * scale + py, [pixels[at], pixels[at + 1], pixels[at + 2]]);
+          }
+        }
+      }
+    }
+    let pen = c * cellW + 3;
+    for (const digit of String(index)) {
+      const glyph = DIGITS[digit];
+      for (let gy = 0; gy < 5; gy++) {
+        for (let gx = 0; gx < 3; gx++) {
+          if (glyph[gy * 3 + gx] !== '1') continue;
+          put(pen + gx, r * cellH + height * scale + 1 + gy, [230, 226, 210]);
+        }
+      }
+      pen += 4;
+    }
+  });
+  writeFileSync(out, encodePng(w, h, data));
+  console.log(`${out}: ${list.length} of ${count} heads, ${perRow} per row, labelled, ${w}x${h}`);
 }
 
 async function preview(out = 'mixer-preview.png') {
@@ -265,20 +402,23 @@ async function preview(out = 'mixer-preview.png') {
   const columns = Math.max(...all.map((anim) => bundle.offsets('head', anim).length));
   const cells = [];
   for (const [, spec] of archetypes) {
+    // The first head each, because this sheet is about the animations; the
+    // catalogue of heads has a command of its own.
+    const head = spec.heads[0];
     for (const anim of all) {
       const x0 = bundle.index[anim];
       const offsets = bundle.offsets('head', anim);
       for (let f = 0; f < columns; f++) {
         cells.push(
           f < offsets.length
-            ? compose(bundle, x0 + f, spec.head, offsets[f])
+            ? compose(bundle, x0 + f, head, offsets[f])
             : new Uint8ClampedArray(bundle.width * bundle.height * 4),
         );
       }
     }
   }
   const size = contactSheet(out, cells, columns, bundle.width, bundle.height, 3);
-  console.log(`${out}: ${archetypes.length} archetypes x ${all.length} clips, ${size.w}x${size.h}`);
+  console.log(`${out}: ${archetypes.length} archetypes (first head each) x ${all.length} clips, ${size.w}x${size.h}`);
 }
 
 function list() {
@@ -291,7 +431,9 @@ function list() {
     console.log(`  ${name.padEnd(10)} ${(Array.isArray(value) ? value : [value]).join(', ')}`);
   }
   console.log(`\narchetypes (${Object.keys(manifest.archetypes).length}):`);
-  for (const [name, spec] of Object.entries(manifest.archetypes)) console.log(`  ${name.padEnd(10)} head ${spec.head}`);
+  for (const [name, spec] of Object.entries(manifest.archetypes)) {
+    console.log(`  ${name.padEnd(10)} heads ${spec.heads.join(', ')}`);
+  }
   console.log(`\n${cached} file(s) cached in tools/mixer/cache/`);
 }
 
@@ -321,19 +463,19 @@ async function main() {
       return bake();
     }
     case 'set-head': {
-      const [name, index] = args;
-      if (!name || index === undefined) {
-        throw new Error('usage: set-head <archetype> <head index> (see: yarn mixer heads out.png)');
+      const [name, ...indices] = args;
+      if (!name || indices.length === 0) {
+        throw new Error('usage: set-head <archetype> <head index> [more] - several means the roll picks one');
       }
-      manifest.archetypes[name] = { head: Number(index) };
+      manifest.archetypes[name] = { heads: indices.map(Number) };
       writeManifest(manifest);
-      console.log(`+ ${name} wears head ${index}`);
+      console.log(`+ ${name} wears ${indices.join(', ')}`);
       return bake();
     }
     case 'bake':
       return bake();
     case 'heads':
-      return heads(args[0]);
+      return heads(args[0], args[1], args[2]);
     case 'preview':
       return preview(args[0]);
     default:

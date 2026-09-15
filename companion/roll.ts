@@ -12,6 +12,7 @@ import { ARCHETYPES, type Archetype, type CompanionSpec, type Palette } from './
 import { hash, pick, seededRng, type Rng } from './rng';
 import { isHumanish, namePoolFor } from './names';
 import { VOICE_IDS } from '../voice/catalog';
+import { headVariants } from '../render/mixer';
 
 /** `hash(characterName + ":" + rerollsUsed)`, as the design fixes it. */
 export function seedFor(characterName: string, rerollsUsed: number): number {
@@ -31,6 +32,15 @@ const ROBES = ['#3a2f6a', '#5a2f6a', '#2f4a6a', '#6a2f2f', '#2f5a4a', '#4a3a2a',
 const BELT = ['#3a2a1a', '#5a3a1a', '#8a6a2a', '#2a2a2a', '#6a4a2a'];
 const LEGS = ['#3a2f2a', '#4a3a3a', '#2a2f3a', '#5a4a3a', '#2f2f2f', '#4a4a5a'];
 const WEAPON = ['#b0b8c0', '#8a6a3a', '#d0d0d8', '#6a5a4a', '#c8a850'];
+
+/** How often each archetype has something to draw in a fight. */
+const WEAPON_CHANCE: Partial<Record<Archetype, number>> = {
+  knight: 0.95,
+  archer: 0.9,
+  wizard: 0.75,
+  magician: 0.75,
+  ogre: 0.3,
+};
 
 function skinPool(archetype: Archetype): readonly string[] {
   switch (archetype) {
@@ -72,20 +82,21 @@ export function roll(characterName: string, rerollsUsed: number): CompanionSpec 
   const voiceId = pick(rng, VOICE_IDS);
 
   // Parts before the palette: the weapon colour only exists when there is one.
-  // The first of the two draws used to be `hairLong`, which the Mixer art never
-  // showed - one head per archetype - so the card was announcing a haircut
-  // nobody could see. The flag is gone; the draw stays, because the roll is a
-  // sequence and removing a step from the middle of it hands every existing
-  // companion a different one.
-  rng();
-  // Wizards and magicians carry a staff more often than not; ogres rarely
-  // bother with a weapon at all.
-  const weaponChance = archetype === 'wizard' || archetype === 'magician' ? 0.75 : archetype === 'ogre' ? 0.3 : 0.55;
+  // The first draw used to decide `hairLong`, which the art never showed; it now
+  // picks which of the archetype's heads they wear, which it does. Same draw in
+  // the same place on purpose: one moved or added here would hand every existing
+  // companion a different name, voice and palette.
+  const variants = headVariants(archetype);
+  const head = Math.floor(rng() * Math.max(1, variants));
+  // A knight is nothing without one and an archer carries the bow they are
+  // named for; wizards and fortune tellers lean on a staff more often than
+  // not; ogres rarely bother.
+  const weaponChance = WEAPON_CHANCE[archetype] ?? 0.55;
   const hasWeapon = rng() < weaponChance;
 
   const palette = rollPalette(rng, archetype, hasWeapon);
 
-  return { archetype, name, voiceId, palette, parts: { hasWeapon } };
+  return { archetype, name, voiceId, palette, parts: { hasWeapon, head } };
 }
 
 const HEX = /^#[0-9a-f]{6}$/i;
@@ -104,6 +115,9 @@ export function isValidSpec(value: unknown): value is CompanionSpec {
   }
   if (palette.weapon !== null && (typeof palette.weapon !== 'string' || !HEX.test(palette.weapon))) return false;
   const parts = spec.parts as Record<string, unknown> | undefined;
+  // `head` is deliberately not required here. A spec saved before heads varied
+  // has none, and rejecting it would throw a companion away over a field that
+  // can be recomputed from the seed; `companion/state.ts` fills it in.
   if (!parts || typeof parts.hasWeapon !== 'boolean') return false;
   return true;
 }

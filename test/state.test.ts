@@ -34,13 +34,30 @@ describe('state', () => {
 
   it('trusts the seed over a tampered spec, and keeps a spent reroll', () => {
     const state = freshState('Dargoth', 1, 0);
-    const tampered = { ...state, spec: { ...state.spec, archetype: 'knight' } };
+    const tampered = { ...state, spec: { ...state.spec, archetype: 'nieistniejacy' } };
     const normalized = normalizeState(tampered, 'Dargoth', 0);
     expect(normalized).not.toBeNull();
     expect(normalized!.rerollsUsed).toBe(1);
     expect(normalized!.spec).toEqual(roll('Dargoth', 1));
   });
 
+  it('gives a spec saved before heads varied the one the seed would have given it', () => {
+    const state = freshState('Dargoth', 0, 0);
+    const parts = { hasWeapon: state.spec.parts.hasWeapon };
+    const old = { ...state, spec: { ...state.spec, parts } };
+    const normalized = normalizeState(old, 'Dargoth', 0)!;
+    // The rest of the stored spec survives; only the missing head is filled in,
+    // and with the seed's own, so a wiped localStorage draws the same companion.
+    expect(normalized.spec.parts.head).toBe(roll('Dargoth', 0).parts.head);
+    expect(normalized.spec.name).toBe(state.spec.name);
+    expect(normalized.spec.palette).toEqual(state.spec.palette);
+  });
+
+  it('keeps a head that was already stored, even one the roll would not give', () => {
+    const state = freshState('Dargoth', 0, 0);
+    const kept = { ...state, spec: { ...state.spec, parts: { ...state.spec.parts, head: 3 } } };
+    expect(normalizeState(kept, 'Dargoth', 0)!.spec.parts.head).toBe(3);
+  });
   it('repairs odd secondary fields instead of rerolling', () => {
     const state = freshState('Dargoth', 0, 0);
     const odd = { ...state, mood: 9, mutes: { global: 'yes', categories: ['kill', 'bogus'] }, settings: { globalCooldownMs: -5 } };

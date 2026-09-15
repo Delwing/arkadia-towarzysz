@@ -3,6 +3,7 @@ import { isValidSpec, roll, seedFor } from '../companion/roll';
 import { ARCHETYPES } from '../companion/types';
 import { namePoolFor } from '../companion/names';
 import { VOICE_IDS } from '../voice/catalog';
+import { headVariants } from '../render/mixer';
 
 const NAMES = ['Dargoth', 'Vesna', 'Zbrozek', 'aBc', 'x', 'Bardzo Dlugie Imie Postaci', 'Zażółć'];
 
@@ -39,7 +40,23 @@ describe('roll', () => {
         expect(namePoolFor(spec.archetype)).toContain(spec.name);
         expect(VOICE_IDS).toContain(spec.voiceId);
         expect(spec.parts.hasWeapon).toBe(spec.palette.weapon !== null);
+        expect(Number.isInteger(spec.parts.head)).toBe(true);
+        expect(spec.parts.head).toBeGreaterThanOrEqual(0);
+        expect(spec.parts.head).toBeLessThan(headVariants(spec.archetype));
       }
+    }
+  });
+
+  it('rolls every head the art carries for an archetype', () => {
+    const worn = new Map<string, Set<number>>();
+    for (let i = 0; i < 2000; i++) {
+      const spec = roll(`Gracz${i}`, 0);
+      const seen = worn.get(spec.archetype) ?? new Set<number>();
+      seen.add(spec.parts.head);
+      worn.set(spec.archetype, seen);
+    }
+    for (const archetype of ARCHETYPES) {
+      expect(worn.get(archetype)?.size).toBe(headVariants(archetype));
     }
   });
 
@@ -62,7 +79,7 @@ describe('roll', () => {
 
   it('rejects broken specs', () => {
     const good = roll('Dargoth', 0);
-    expect(isValidSpec({ ...good, archetype: 'knight' })).toBe(false);
+    expect(isValidSpec({ ...good, archetype: 'nieistniejacy' })).toBe(false);
     expect(isValidSpec({ ...good, voiceId: 'nope' })).toBe(false);
     expect(isValidSpec({ ...good, palette: { ...good.palette, skin: 'red' } })).toBe(false);
     expect(isValidSpec(null)).toBe(false);

@@ -11,15 +11,27 @@ export type Archetype =
   | 'magician'
   | 'wizard'
   | 'villager' // human-ish, faces visible
+  | 'knight'
+  | 'archer'
   | 'monster'
   | 'ogre'
   | 'orc'
   | 'goblin'; // not human, faces very visible
 
+/**
+ * The draw that picks one of these is the roll's first, so the list is not a
+ * set that can be edited freely: adding to it (the knight and the archer were
+ * added after 1.0) gives every character a different companion the next time
+ * their spec is computed from the seed. A stored companion is kept as it is -
+ * that is what `companion/state.ts` is for - so it costs nobody's companion,
+ * but it does mean a wiped localStorage no longer returns the same one.
+ */
 export const ARCHETYPES: readonly Archetype[] = [
   'magician',
   'wizard',
   'villager',
+  'knight',
+  'archer',
   'monster',
   'ogre',
   'orc',
@@ -43,7 +55,15 @@ export interface CompanionSpec {
   voiceId: string;
   /** Applied to the sprite sheet at load. */
   palette: Palette;
-  parts: { hasWeapon: boolean };
+  parts: {
+    hasWeapon: boolean;
+    /**
+     * Which of the archetype's heads they wear, as an index into the list the
+     * bake carries (`MIXER_HEADS`). Stored, so appending a head to an archetype
+     * leaves the companions who already exist looking as they did.
+     */
+    head: number;
+  };
 }
 
 /** Speech categories. One per reaction kind; the voice packs are keyed by them. */

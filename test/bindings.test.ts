@@ -378,10 +378,12 @@ describe('stances', () => {
       name: 'Test',
       voiceId: 'giermek',
       palette: { skin: '#000000', hair: '#000000', armour: '#000000', belt: '#000000', legs: '#000000', weapon: null },
-      parts: { hasWeapon },
+      parts: { hasWeapon, head: 0 },
     });
     expect(guardFor(spec('wizard', true))).toBe('guardStaff');
     expect(guardFor(spec('magician', false))).toBe('guardStaff');
+    expect(guardFor(spec('archer', true))).toBe('guardBow');
+    expect(guardFor(spec('knight', true))).toBe('guard');
     expect(guardFor(spec('goblin', true))).toBe('guard');
     // The roll's own `hasWeapon` does not decide this any more: everybody has
     // something to draw.
@@ -433,7 +435,7 @@ describe('stances', () => {
           name: 'Test',
           voiceId: 'giermek',
           palette: { skin: '#000000', hair: '#000000', armour: '#000000', belt: '#000000', legs: '#000000', weapon: null },
-          parts: { hasWeapon: true },
+          parts: { hasWeapon: true, head: 0 },
         }),
       );
     }

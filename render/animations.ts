@@ -407,14 +407,19 @@ const SPECS = {
    * sword is drawn when it starts and away when it is over.
    *
    * The art is the tool's `weapon_sword_idle` - the same sword `lunge` swings,
-   * at rest - and `guardStaff` is the robed archetypes' version of it. Which of
-   * the two a companion holds is `guardFor` in `events/bindings.ts`.
+   * at rest. `guardStaff` is the robed archetypes' version of it and `guardBow`
+   * the archer's. Which of the three a companion holds is `guardFor` in
+   * `events/bindings.ts`.
    */
   guard: {
     priority: 1,
     pose: (_t, _k, base) => base,
   },
   guardStaff: {
+    priority: 1,
+    pose: (_t, _k, base) => base,
+  },
+  guardBow: {
     priority: 1,
     pose: (_t, _k, base) => base,
   },

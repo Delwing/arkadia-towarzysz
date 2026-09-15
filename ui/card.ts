@@ -55,10 +55,18 @@ export const AMBIENT_LABELS: Record<AmbientLevel, string> = {
   often: 'czesto',
 };
 
+/**
+ * What the card calls each archetype. "mag" and "czarodziej" were two names
+ * for one thing, which read as a mistake on a card that names seven kinds of
+ * companion; the two robed archetypes are now a mage and a fortune teller, and
+ * their hats say so - tall and pointed against brimmed and hooded.
+ */
 export const ARCHETYPE_LABELS: Record<Archetype, string> = {
-  magician: 'mag',
-  wizard: 'czarodziej',
+  magician: 'wrozbita',
+  wizard: 'mag',
   villager: 'wiesniak',
+  knight: 'rycerz',
+  archer: 'lucznik',
   monster: 'potwor',
   ogre: 'ogr',
   orc: 'ork',

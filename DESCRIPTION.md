@@ -10,17 +10,20 @@ zapomnienia, nigdy system, ktory czegos od ciebie chce.
 
 ## Co potrafi
 
-- **Losowany, nie projektowany** - archetyp (mag, czarodziej, wiesniak, potwor,
-  ogr, ork, goblin), kolory, imie i glos losuja sie z imienia postaci. Ta sama
-  postac zawsze dostaje tego samego towarzysza, nawet po wyczyszczeniu
-  przegladarki. Nie da sie go wylosowac jeszcze raz - dostajesz tego, ktory ci wypadl.
+- **Losowany, nie projektowany** - archetyp (mag, wrozbita, wiesniak, rycerz,
+  lucznik, potwor, ogr, ork, goblin), glowa, kolory, imie i glos losuja sie z
+  imienia postaci. Kazdy archetyp ma kilka glow do wylosowania, wiec dwoch
+  wiesniakow to nie ten sam wiesniak w innych barwach. Ta sama postac zawsze
+  dostaje tego samego towarzysza. Nie da sie go wylosowac jeszcze raz -
+  dostajesz tego, ktory ci wypadl.
 - **Reaguje animacja na wszystko** - zabicia, postepy, obrazenia, smierc,
   monety, zakupy, sprzedaz, ocena kamieni, trunki i kac, wiedza, oczyszczona
   lokacja, ogluszenie, panika, wedkowanie, poklad statku, przeobrazenie,
   fajka, poczta, koniec swiata, bezczynnosc. Zawsze cos zrobi, rzadko cos powie.
 - **Wyciaga bron do walki** - gdy zaczyna sie walka, dobywa broni i stoi z nia
-  do konca; po walce chowa ja z powrotem. Magowie i czarodzieje opieraja sie na
-  kosturze, reszta trzyma miecz - ten sam, ktorym wymachuje przy zabiciu.
+  do konca; po walce chowa ja z powrotem. Magowie i wrozbici opieraja sie na
+  kosturze, lucznik napina luk, reszta trzyma miecz - ten sam, ktorym wymachuje
+  przy zabiciu.
 - **Czeka razem z toba** - przy zarzuconej wedce siada obok i siedzi, dopoki
   cos nie wezmie; ogluszony zatacza sie dokladnie tak dlugo, jak dlugo nie
   mozesz nic zrobic; a gdy Jezdziec Apokalipsy zaczyna liczyc minuty do

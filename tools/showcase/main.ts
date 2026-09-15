@@ -27,6 +27,7 @@ import { guardFor, POSTURE_ORDER, STANCES, stanceFor, type PostureKey } from '..
 import { AMBIENT_MAX_GAP_MS, AMBIENT_MIN_GAP_MS, LEVEL_SCALE } from '../../companion/ambient';
 import { Animator, PRIMITIVE_DEFS } from '../../render/animator';
 import { buildSheet, frameRect, type LoadedSheet } from '../../render/sheet';
+import { headVariants } from '../../render/mixer';
 import { frameIndex } from '../../render/pose';
 import { CANVAS_H, CANVAS_W, Chip, PIXEL_SCALE } from '../../ui/chip';
 import { Bubble } from '../../ui/bubble';
@@ -244,7 +245,8 @@ function refreshSpecPanel(): void {
   specBox.textContent = '';
   const line = el('div');
   line.innerHTML =
-    `<b>${spec.name}</b> - ${ARCHETYPE_LABELS[spec.archetype]}, glos: ${voiceName(spec.voiceId)}` +
+    `<b>${spec.name}</b> - ${ARCHETYPE_LABELS[spec.archetype]}, glos: ${voiceName(spec.voiceId)}, ` +
+    `glowa ${(spec.parts.head % headVariants(spec.archetype)) + 1}/${headVariants(spec.archetype)}` +
     (sheet ? '' : ' <i>(arkusz sie nie zbudowal - rysowana jest postac zastepcza)</i>');
   specBox.appendChild(line);
   const swatches = row();
@@ -336,7 +338,14 @@ function companionPanel(): HTMLDivElement {
     byArchetype.appendChild(button(ARCHETYPE_LABELS[archetype], () => applySpec(roll(nameFor(archetype), 0))));
   }
   box.appendChild(byArchetype);
-  box.appendChild(row(button('Losowy', () => applySpec(roll(`X${Math.floor(Math.random() * 100000)}`, 0)))));
+  box.appendChild(
+    row(
+      button('Losowy', () => applySpec(roll(`X${Math.floor(Math.random() * 100000)}`, 0))),
+      // The roll picks one of the archetype's heads; this walks the rest of
+      // them, which is the only way to look at a head nobody has rolled yet.
+      button('Inna glowa', () => applySpec({ ...spec, parts: { ...spec.parts, head: spec.parts.head + 1 } })),
+    ),
+  );
   specBox.style.marginTop = '8px';
   box.appendChild(specBox);
   return box;

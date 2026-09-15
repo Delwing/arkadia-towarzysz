@@ -7,7 +7,15 @@
  * the deterministic seed, so the companion comes back identical.
  */
 
-import { AMBIENT_LEVELS, CATEGORIES, STATE_VERSION, type AmbientLevel, type Category, type PersistedState } from './types';
+import {
+  AMBIENT_LEVELS,
+  CATEGORIES,
+  STATE_VERSION,
+  type AmbientLevel,
+  type Category,
+  type CompanionSpec,
+  type PersistedState,
+} from './types';
 import { isValidSpec, roll } from './roll';
 import { isValidTemper, NO_TEMPER, type Temper } from './temper';
 import { VOICE_IDS } from '../voice/catalog';
@@ -110,7 +118,15 @@ export function normalizeState(raw: unknown, characterName: string, now = Date.n
   // no longer exists - falls back to the seed, which is the one thing that can
   // always be recomputed.
   const expected = roll(characterName, rerollsUsed);
-  const spec = isValidSpec(value.spec) ? value.spec : expected;
+  const stored = isValidSpec(value.spec) ? value.spec : expected;
+  // Heads did not always vary, so a spec saved before they did carries no
+  // `parts.head`. The seed's own head is the right one to give it: it is what
+  // the same character would be drawn with after losing localStorage, and those
+  // two must not disagree.
+  const spec: CompanionSpec =
+    typeof stored.parts.head === 'number' && Number.isFinite(stored.parts.head)
+      ? stored
+      : { ...stored, parts: { ...stored.parts, head: expected.parts.head } };
 
   const mutesRaw = (value.mutes ?? {}) as Record<string, unknown>;
   const categories = Array.isArray(mutesRaw.categories)

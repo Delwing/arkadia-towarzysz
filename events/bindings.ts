@@ -468,7 +468,7 @@ export function resolve(event: GameEvent): Reaction | null {
  * so a stance can be looked at for as long as it takes to judge one; a test
  * keeps the list honest against `stanceFor` and `guardFor`.
  */
-export const STANCES: readonly Primitive[] = ['watch', 'stun', 'guard', 'guardStaff', 'hide'];
+export const STANCES: readonly Primitive[] = ['watch', 'stun', 'guard', 'guardStaff', 'guardBow', 'hide'];
 
 /**
  * What a posture stands for. One key per state the client reports, because
@@ -529,9 +529,11 @@ export function stanceFor(event: GameEvent): Posture | null | undefined {
  * Which guard a companion stands in. Everybody has something to draw - a
  * companion who stood through a fight with empty hands read as a companion who
  * had not noticed it - so the only question is what: the two robed archetypes
- * lean on a staff, everybody else brings out the sword the `lunge` already
- * swings.
+ * lean on a staff, an archer nocks the bow they are named for, and everybody
+ * else brings out the sword the `lunge` already swings.
  */
 export function guardFor(spec: CompanionSpec): Primitive {
-  return spec.archetype === 'wizard' || spec.archetype === 'magician' ? 'guardStaff' : 'guard';
+  if (spec.archetype === 'wizard' || spec.archetype === 'magician') return 'guardStaff';
+  if (spec.archetype === 'archer') return 'guardBow';
+  return 'guard';
 }

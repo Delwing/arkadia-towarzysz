@@ -4,6 +4,7 @@ import { clipOf, PRIMITIVES, type Primitive } from '../render/animations';
 import {
   drawMixerPixels,
   hasMixerArt,
+  headVariants,
   mixerAnimations,
   MIXER_CELL_H,
   MIXER_CELL_W,
@@ -29,7 +30,7 @@ function spec(overrides: Partial<CompanionSpec> = {}): CompanionSpec {
       legs: '#ffff00',
       weapon: '#ff00ff',
     },
-    parts: { hasWeapon: true },
+    parts: { hasWeapon: true, head: 0 },
     ...overrides,
   };
 }
@@ -295,5 +296,41 @@ describe('drawMixerPixels', () => {
     expect(MIXER_FIGURE_H).toBe(MIXER_FRAME_H);
     expect(MIXER_FRAME_W).toBe(16);
     expect(MIXER_FRAME_H).toBe(24);
+  });
+});
+
+/** Every opaque pixel of a sheet, as one string. */
+function fingerprint(sheet: SheetPixels): string {
+  let out = '';
+  for (let i = 0; i + 3 < sheet.data.length; i += 4) {
+    out += sheet.data[i + 3] === 0 ? '.' : String.fromCharCode(48 + ((sheet.data[i] as number) % 40));
+  }
+  return out;
+}
+
+describe('the heads an archetype can wear', () => {
+  it('carries several for every archetype the bake dressed', () => {
+    for (const archetype of ARCHETYPES) {
+      expect(hasMixerArt(archetype)).toBe(true);
+      expect(headVariants(archetype)).toBeGreaterThan(1);
+      expect(MIXER_HEADS[archetype]?.length).toBe(headVariants(archetype));
+    }
+  });
+
+  it('draws a different companion for every head in the list', () => {
+    for (const archetype of ARCHETYPES) {
+      const seen = new Set<string>();
+      for (let head = 0; head < headVariants(archetype); head++) {
+        seen.add(fingerprint(drawMixerPixels(spec({ archetype, parts: { hasWeapon: true, head } }))));
+      }
+      expect(seen.size).toBe(headVariants(archetype));
+    }
+  });
+
+  it('wraps an index past the end of the list rather than leaving them bald', () => {
+    const variants = headVariants('goblin');
+    const head = (n: number) => fingerprint(drawMixerPixels(spec({ archetype: 'goblin', parts: { hasWeapon: true, head: n } })));
+    expect(head(variants * 3)).toBe(head(0));
+    expect(head(variants + 1)).toBe(head(1));
   });
 });

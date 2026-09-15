@@ -11,8 +11,8 @@
  *
  * Pure - no DOM, no canvas - so it is unit tested like the rest.
  *
- * Art: KingBell's Pixel Art Sprite Mixer (CC-BY 4.0), credited in README.md,
- * DESCRIPTION.md and the settings panel.
+ * Art: KingBell's Pixel Art Sprite Mixer (CC-BY 4.0), credited in README.md and
+ * in DESCRIPTION.md, which is what the registry shows.
  */
 
 import type { Archetype, CompanionSpec, Palette } from '../companion/types';
@@ -122,6 +122,25 @@ export function unpack(packed: string, pixels: number): Uint8Array {
   return out;
 }
 
+/**
+ * How many heads the bake carries for an archetype. The roll needs the count -
+ * it picks one of them - and the art is the only place that knows it.
+ */
+export function headVariants(archetype: Archetype): number {
+  return MIXER_HEADS[archetype]?.length ?? 0;
+}
+
+/**
+ * The head a companion wears. The rolled index is taken modulo what the bake
+ * carries, so a head list that shrinks leaves nobody bald.
+ */
+function headFor(spec: CompanionSpec): { packed: string; index: number } | null {
+  const heads = MIXER_HEADS[spec.archetype];
+  if (!heads || heads.length === 0) return null;
+  const at = Math.abs(Math.trunc(spec.parts.head)) % heads.length;
+  return heads[at] ?? null;
+}
+
 /** Whether the bake dressed this archetype. Nothing else should guess. */
 export function hasMixerArt(archetype: Archetype): boolean {
   return Object.prototype.hasOwnProperty.call(MIXER_HEADS, archetype);
@@ -151,7 +170,7 @@ export function drawMixerPixels(spec: CompanionSpec): SheetPixels {
 
   const colours = recolour(spec);
   const pixels = MIXER_FRAME_W * MIXER_FRAME_H;
-  const head = MIXER_HEADS[spec.archetype];
+  const head = headFor(spec);
   const headPixels = head ? unpack(head.packed, pixels) : null;
 
   clips.forEach(([, clip], row) => {
