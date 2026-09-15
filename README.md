@@ -134,9 +134,9 @@ swing, loot is `duck` (bending to pick something up), spending is `hurt_tear`
 crouch, held), and hiding from the Apocalypse is `die_head`, which sinks the
 figure into the floor until nothing shows but the hat and the eyes under it.
 
-Heads are a list per archetype - eight ways to be a villager, six to be a
-goblin - and the roll picks one of them, so a room full of companions is not
-seven faces in different colours. Which one it picked is stored with the
+Heads are a list per archetype - four ways to be a knight, seven to be a
+monster - and the roll picks one of them, so a room full of companions is not
+nine faces in different colours. Which one it picked is stored with the
 companion (`parts.head`), so a head appended to an archetype later leaves
 everyone who already exists looking as they did.
 

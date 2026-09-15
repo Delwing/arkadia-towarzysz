@@ -23,7 +23,7 @@ import { headVariants } from '../render/mixer';
  *
  * '1' was the roll from the plugin's first release.
  */
-export const SEED_GENERATION = '2';
+export const SEED_GENERATION = '1.0.0';
 
 /** `hash(characterName + ":" + rerollsUsed + ":" + generation)`. */
 export function seedFor(characterName: string, rerollsUsed: number): number {

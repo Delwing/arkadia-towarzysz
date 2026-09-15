@@ -698,7 +698,7 @@ about the client or the registry and had to bend. Each one is easy to revisit.
 23e. **One head per archetype became a list, and the freed draw picks from it.**
     The Mixer carries 333 heads and we were using seven of them, so every
     villager was the same villager in different colours. Each archetype now
-    names five to eight (`tools/mixer/manifest.json`), the bake packs them all,
+    names four to seven (`tools/mixer/manifest.json`), the bake packs them all,
     and `parts.head` - drawn exactly where `hairLong` used to be drawn, so no
     companion's name, voice or palette moved - says which one. Three things
     follow:
