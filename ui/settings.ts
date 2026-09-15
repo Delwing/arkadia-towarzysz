@@ -10,6 +10,9 @@ import { CATEGORIES, type Archetype, type Category, type PersistedState } from '
 import { bucketLabel } from '../companion/mood';
 import { MAX_REROLLS } from '../companion/state';
 import { VOICE_IDS, voiceName } from '../voice/catalog';
+import { CATEGORY_RULES } from '../voice/speak';
+import { GEM_PRIORITY_COPPER, PRIORITY_CATEGORIES } from '../events/bindings';
+import { COPPER_PER } from '../text/coins';
 
 /** The plugin's own page; the sprite art is this repository's, so there is nobody else to credit. */
 export const ATTRIBUTION_URL = 'https://github.com/Delwing/arkadia-towarzysz';
@@ -171,6 +174,24 @@ export function buildSettingsPanel(view: SettingsView, handlers: SettingsHandler
     numberField('Minimalna przerwa miedzy kwestiami (s)', Math.round(state.settings.globalCooldownMs / 1000), 5, 600, handlers.onCooldownSeconds),
   );
   timing.appendChild(numberField('Drzemka po bezczynnosci (min)', state.settings.idleMinutes, 1, 120, handlers.onIdleMinutes));
+  // The priority tier is invisible otherwise: someone who sets the pause to
+  // ten minutes and then hears a line about their death would call it a bug.
+  timing.appendChild(
+    el(
+      'div',
+      `Przerwa nie dotyczy rzadkich zdarzen: ${PRIORITY_CATEGORIES.map((category) => CATEGORY_LABELS[category].toLowerCase()).join(', ')}. ` +
+        'Te mozna uciszyc tylko cisza.',
+      { opacity: '0.7', fontSize: '11px', marginTop: '4px' },
+    ),
+  );
+  timing.appendChild(
+    el(
+      'div',
+      `Kamien musi byc przy tym wart co najmniej ${GEM_PRIORITY_COPPER / COPPER_PER.mithryl} mithryle ` +
+        `i przebija przerwe najwyzej raz na ${Math.round((CATEGORY_RULES.gemGood.priorityWindowMs ?? 0) / 60_000)} min.`,
+      { opacity: '0.7', fontSize: '11px' },
+    ),
+  );
   root.appendChild(timing);
 
   const actions = section('Akcje');

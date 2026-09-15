@@ -44,7 +44,19 @@ export interface Reaction {
   intensity: number;
   category: Category;
   moodDelta: number;
+  /**
+   * Big enough to speak through the global cooldown (`voice/speak.ts`). The
+   * judgement is per event, not per category: the same `gemGood` is priority
+   * at two mithryls and an ordinary remark at one.
+   */
+  priority?: boolean;
 }
+
+/**
+ * Every category `resolve` can mark priority. The settings panel lists these
+ * so the exemption is not invisible; a test keeps the list honest.
+ */
+export const PRIORITY_CATEGORIES: readonly Category[] = ['death', 'improveMax', 'gemGood'];
 
 export const MOOD = {
   kill: 0.04,
@@ -67,6 +79,13 @@ export const MOOD = {
  */
 export const GEM_GOOD_COPPER = COPPER_PER.mithryl;
 export const GEM_BAD_COPPER = COPPER_PER.gold;
+/**
+ * A stone worth speaking through the global cooldown for. One mithryl is a
+ * good find and gets the ordinary `gemGood` treatment; two is the one you tell
+ * someone about. Unlike a death, these arrive in bags, so the exemption is
+ * rationed by `gemGood`'s `priorityWindowMs`.
+ */
+export const GEM_PRIORITY_COPPER = 2 * COPPER_PER.mithryl;
 /** Loot at or above this is a full-size haul (intensity and mood both max out). */
 export const LOOT_FULL_COPPER = 2_400;
 
@@ -94,7 +113,7 @@ export function resolve(event: GameEvent): Reaction | null {
     case 'improve': {
       if (event.to <= event.from) return null;
       if (event.to >= MAX_IMPROVE) {
-        return { primitive: 'cheer', intensity: 2.5, category: 'improveMax', moodDelta: MOOD.improveMax };
+        return { primitive: 'cheer', intensity: 2.5, category: 'improveMax', moodDelta: MOOD.improveMax, priority: true };
       }
       return { primitive: 'cheer', intensity: 1, category: 'improve', moodDelta: MOOD.improve };
     }
@@ -109,7 +128,7 @@ export function resolve(event: GameEvent): Reaction | null {
       };
     }
     case 'death':
-      return { primitive: 'topple', intensity: 1, category: 'death', moodDelta: MOOD.death };
+      return { primitive: 'topple', intensity: 1, category: 'death', moodDelta: MOOD.death, priority: true };
     case 'loot': {
       if (!(event.copper > 0)) return null;
       const share = Math.min(1, event.copper / LOOT_FULL_COPPER);
@@ -138,7 +157,13 @@ export function resolve(event: GameEvent): Reaction | null {
       return { primitive: 'gulp', intensity: 0.8, category: 'sell', moodDelta: MOOD.sell };
     case 'gem': {
       if (event.copper >= GEM_GOOD_COPPER) {
-        return { primitive: 'glitter', intensity: 2.2, category: 'gemGood', moodDelta: MOOD.gemGood };
+        return {
+          primitive: 'glitter',
+          intensity: 2.2,
+          category: 'gemGood',
+          moodDelta: MOOD.gemGood,
+          priority: event.copper >= GEM_PRIORITY_COPPER,
+        };
       }
       if (event.copper < GEM_BAD_COPPER) {
         return { primitive: 'slump', intensity: 1, category: 'gemBad', moodDelta: MOOD.gemBad };

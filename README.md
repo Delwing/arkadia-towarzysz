@@ -136,13 +136,29 @@ client event
 | `Bierzesz ... monet ...` / `Dostajesz ...` / `wyplaca ci ... monet` | `gulp`, scales with the copper value | `loot` | up to +0.15 |
 | `Kupujesz ...` / `Placisz ...` / `... zgarnia ... monet` | `slump`, scales with the price when the line gives one | `spend` | 0 |
 | `Sprzedajesz ...` | `gulp` x0.8 - the coins, if any, land separately | `sell` | +0.05 |
-| gem valuation >= 1 mithryl | `glitter` | `gemGood` | +0.10 |
+| gem valuation >= 1 mithryl (priority from 2) | `glitter` | `gemGood` | +0.10 |
 | gem valuation < 1 gold | `slump` | `gemBad` | -0.02 |
 | no command for 5 min (configurable) | `doze` (until the next command) | `idle` | 0 |
 
 Restraint (all persisted, all in `/towarzysz`): a global cooldown (default
 45 s), per-category cooldowns and probabilities (`voice/speak.ts`), a global
 mute and per-category mutes. Animation is never gated by any of it.
+
+Some reactions speak through the global cooldown. `resolve()` decides that per
+event, not per category (`Reaction.priority`): a death, an improve reaching
+niebotyczne, and a gem valued at 2 mithryls or more. They are the moments the
+reaction is actually for, and without the exemption they would be the ones most
+reliably swallowed - a death arrives on the heels of a run of `hurt`, which is
+exactly what is holding the cooldown at that moment. A priority line still
+honours the mutes, its own category cooldown and its probability, and it
+restarts the global cooldown for everything else.
+
+Gems get one extra limit, `gemGood.priorityWindowMs` (10 min): they are rare
+per stone but arrive in bags, so without it appraising one would let the
+companion speak every 60 s whatever pause the player set. Inside the window a
+priority request is *demoted*, not dropped - it takes its chances with the
+global cooldown like any other line. The window counts uses of the exemption,
+so a stone found while nothing was holding the cooldown does not spend it.
 
 ## Storage
 

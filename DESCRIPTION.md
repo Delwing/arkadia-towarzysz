@@ -19,7 +19,10 @@ zapomnienia, nigdy system, ktory czegos od ciebie chce.
   rzadko cos powie.
 - **Powsciagliwosc jest funkcja** - przerwa miedzy kwestiami (domyslnie 45 s),
   osobne przerwy i prawdopodobienstwa na kategorie. Przez dwadziescia zabic
-  milczy, przy dwudziestym pierwszym cos rzuci.
+  milczy, przy dwudziestym pierwszym cos rzuci. Ale na smierc, niebotyczne
+  postepy i kamien wart co najmniej 2 mithryle odezwie sie nawet w trakcie
+  przerwy - to te chwile, dla ktorych ta reakcja w ogole istnieje. Kamienie
+  przebijaja przerwe najwyzej raz na 10 minut, bo trafiaja sie workami.
 - **Cztery glosy** - Wierny giermek, Zgryzliwy weteran, Ponury wieszcz,
   Maloomowny. Glos losuje sie niezaleznie od wygladu: goblin mowiacy jak
   ponury wieszcz to dokladnie ten rodzaj pary, dla ktorego warto losowac.

@@ -3,9 +3,11 @@ import {
   GAME_EVENT_TYPES,
   GEM_BAD_COPPER,
   GEM_GOOD_COPPER,
+  GEM_PRIORITY_COPPER,
   INTENSITY_MAX,
   INTENSITY_MIN,
   MAX_IMPROVE,
+  PRIORITY_CATEGORIES,
   resolve,
   type GameEvent,
 } from '../events/bindings';
@@ -91,6 +93,35 @@ describe('bindings', () => {
     expect(resolve({ type: 'gem', copper: 10 * COPPER_PER.gold })).toBeNull();
     expect(resolve({ type: 'gem', copper: COPPER_PER.mithryl })!.category).toBe('gemGood');
     expect(resolve({ type: 'gem', copper: 2 * COPPER_PER.mithryl })!.category).toBe('gemGood');
+  });
+
+  it('only a death, a niebotyczne and a two-mithryl stone are priority', () => {
+    expect(resolve({ type: 'death' })!.priority).toBe(true);
+    expect(resolve({ type: 'improve', from: 14, to: MAX_IMPROVE })!.priority).toBe(true);
+    expect(resolve({ type: 'gem', copper: GEM_PRIORITY_COPPER })!.priority).toBe(true);
+
+    // An ordinary good stone is a good stone, not an announcement.
+    expect(GEM_PRIORITY_COPPER).toBe(2 * COPPER_PER.mithryl);
+    const ordinary = resolve({ type: 'gem', copper: GEM_PRIORITY_COPPER - 1 })!;
+    expect(ordinary.category).toBe('gemGood');
+    expect(ordinary.priority).toBe(false);
+
+    for (const type of GAME_EVENT_TYPES) {
+      if (type === 'death' || type === 'improve' || type === 'gem') continue;
+      expect(resolve(SAMPLES[type])!.priority, type).toBeFalsy();
+    }
+    expect(resolve({ type: 'improve', from: 5, to: 6 })!.priority).toBeFalsy();
+  });
+
+  it('PRIORITY_CATEGORIES covers every category resolve can mark priority', () => {
+    const marked = new Set(
+      [
+        resolve({ type: 'death' }),
+        resolve({ type: 'improve', from: 14, to: MAX_IMPROVE }),
+        resolve({ type: 'gem', copper: GEM_PRIORITY_COPPER }),
+      ].map((reaction) => reaction!.category),
+    );
+    expect([...marked].sort()).toEqual([...PRIORITY_CATEGORIES].sort());
   });
 
   it('death topples, idle dozes, spend slumps', () => {

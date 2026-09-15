@@ -101,6 +101,7 @@ about the client or the registry and had to bend. Each one is easy to revisit.
 13. **Gems**: the same read-out pattern the client's `/ocenkamienie` uses.
     A stone worth reacting to starts at **1 mithryl** - gold-priced stones are
     common enough to be noise. Low is under 1 gold; in between draws nothing.
+    From **2 mithryls** the reaction is priority (note 17b).
 14. **Idle**: no `command` event for `idleMinutes` (default 5, configurable in
     the panel). The doze is sustained until the next command.
 15. **Purchases and improve** rely on GMCP `Char.State.improve` semantics as
@@ -116,6 +117,29 @@ about the client or the registry and had to bend. Each one is easy to revisit.
     (`CATEGORY_RULES`); the global cooldown default is 45 s. A declined request
     never starts a cooldown. The same line is not repeated back to back when
     there is a choice.
+17b. **A priority tier was added** on top of the spec's restraint model. The
+    spec treats restraint as one flat gate, which in practice silences exactly
+    the events worth reacting to - the `hurt` lines that precede a death hold
+    the cooldown right across it. So `resolve()` may mark a reaction
+    `priority`, and such a request skips the global cooldown and nothing else:
+    mutes, the category's own cooldown and its probability all still apply, and
+    a priority line restarts the global cooldown for everything else.
+    The flag sits on the **reaction, not the category**, because the gem case
+    needs a value threshold: `gemGood` is priority at 2 mithryls
+    (`GEM_PRIORITY_COPPER`) and an ordinary remark at 1. `PRIORITY_CATEGORIES`
+    lists the categories that can carry it, drives the note in the settings
+    panel so the exemption is not invisible to someone who set a long pause,
+    and is checked against `resolve()` by a test.
+17c. **`priorityWindowMs` rations the exemption per category.** Deaths and
+    niebotyczne postepy are rare because the game makes them rare, so their own
+    cooldown is limit enough and their window is 0. Valuable stones are rare
+    per stone but arrive in bags: appraising one would otherwise let the
+    companion speak every 60 s (gemGood's cooldown) no matter what pause the
+    player set, which turns the setting into a lie. gemGood gets 10 minutes.
+    Two details that matter: a request inside the window is **demoted, not
+    dropped** - it still speaks if the global cooldown happens to be clear; and
+    the window counts **uses of the exemption**, not priority events, so a
+    stone found in a quiet moment leaves it unspent.
 18. `/towarzysz powiedz` and the panel's "Powiedz cos" bypass restraint on
     purpose, so the bubble can be checked without waiting for an event.
 

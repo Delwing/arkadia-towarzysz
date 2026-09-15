@@ -240,7 +240,9 @@ class Towarzysz {
     this.animator.play(reaction.primitive, reaction.intensity, animationNow());
     this.refreshMoodLabel();
 
-    const line = this.speaker.maybe(this.voice(), reaction.category, bucket(mood.value), state.mutes, now);
+    const line = this.speaker.maybe(this.voice(), reaction.category, bucket(mood.value), state.mutes, now, {
+      priority: reaction.priority === true,
+    });
     if (line) this.bubble.show(line, this.chip.element);
 
     this.scheduleSave();
