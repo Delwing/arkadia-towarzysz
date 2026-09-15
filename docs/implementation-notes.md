@@ -656,6 +656,21 @@ about the client or the registry and had to bend. Each one is easy to revisit.
     `parts.hasWeapon` is the same kind of survivor and is kept for the same
     reason (see 12j), but it still decides the weapon colour, so it is a field
     rather than a burned draw.
+23g. **The card stopped crediting anybody.** It carried three lines - the art,
+    the Mixer, the two commands - under a card whose whole point is to be small,
+    and the CC-BY link the licence actually asks for lives in `DESCRIPTION.md`,
+    which is the page the registry shows, and in `README.md`. The card is the
+    companion now and nothing else.
+23h. **Buttons are styled by the plugin, not by the client.** A bare `<button>`
+    in a plugin popup renders as a line of text on the panel background - the
+    label was visible, the button was not - so `ui/card.ts` draws its own border,
+    fill and hover in neutral greys that sit on either theme.
+23i. **The card fills the popup rather than sitting in a column.** The client
+    opens a plugin window at half the viewport, clamped to 350-700px
+    (`PluginPopup.tsx` in the client, `getInitialPopupWidth`), and there is no
+    way for a plugin to ask for less; a card capped at 320px left the rest of
+    the window empty. It takes the width it is handed now. Making the window fit
+    the card instead is a change in the client, not here.
 
 ## Tooling
 

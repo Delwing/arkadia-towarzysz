@@ -400,8 +400,10 @@ The art and the layout data come from KingBell's
 itch.io page declares **Asset license: CC-BY 4.0** and **Code license: MIT**, so
 both the sprites and the tables read out of the tool are used on those terms.
 The attribution its author asks for is a link back to that page: it is in this
-file, in `DESCRIPTION.md`, on the companion's card, and in the header of
-`render/mixer-art.ts` along with the MIT notice.
+file, in `DESCRIPTION.md` - the page the registry shows - and in the header of
+`render/mixer-art.ts` along with the MIT notice. It is deliberately not on the
+companion's card: three lines of credit under a card that small crowded out the
+card, and the plugin page is where somebody goes looking for it.
 
 Everything else - the plugin, the pipeline, the animation table - is this
 repository's own and carries its licence.

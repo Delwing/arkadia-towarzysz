@@ -17,14 +17,6 @@ import { bucketLabel } from '../companion/mood';
 import { voiceName } from '../voice/catalog';
 import type { PictureOutcome } from './picture';
 
-/** The plugin's own page; the sprite art is this repository's, so there is nobody else to credit. */
-export const ATTRIBUTION_URL = 'https://github.com/Delwing/arkadia-towarzysz';
-/**
- * The art is ours, but the list of animations worth having - a walk, a flash,
- * a warp, a sit, a soul leaving the body - and the art itself both come from
- * KingBell's tool (CC-BY 4.0). The link-back is the credit it asks for.
- */
-export const MIXER_URL = 'https://kingbell.itch.io/pixel-sprite-mixer';
 
 export const CATEGORY_LABELS: Record<Category, string> = {
   kill: 'Zabicia',
@@ -119,9 +111,33 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, text?: string, style?
   return node;
 }
 
+/**
+ * A button that reads as one. The client leaves a plugin's bare <button> looking
+ * like a line of text on the panel background, so the border, the fill and the
+ * hover are drawn here - in neutral greys, which sit on both themes.
+ */
 function button(label: string, onClick: () => void): HTMLButtonElement {
-  const btn = el('button', label, { fontSize: '12px', padding: '2px 8px', cursor: 'pointer' });
+  const btn = el('button', label, {
+    font: 'inherit',
+    fontSize: '12px',
+    lineHeight: '1.4',
+    color: 'inherit',
+    padding: '4px 10px',
+    cursor: 'pointer',
+    borderRadius: '4px',
+    border: '1px solid rgba(128,128,128,.45)',
+    background: 'rgba(128,128,128,.14)',
+    transition: 'background .12s, border-color .12s',
+  });
   btn.type = 'button';
+  btn.addEventListener('mouseenter', () => {
+    btn.style.background = 'rgba(128,128,128,.28)';
+    btn.style.borderColor = 'rgba(128,128,128,.7)';
+  });
+  btn.addEventListener('mouseleave', () => {
+    btn.style.background = 'rgba(128,128,128,.14)';
+    btn.style.borderColor = 'rgba(128,128,128,.45)';
+  });
   btn.addEventListener('click', onClick);
   return btn;
 }
@@ -262,12 +278,14 @@ function pictureButton(handlers: CardHandlers): HTMLButtonElement {
 
 /** Builds the card's DOM. Cheap, so the popup rebuilds it every time it opens. */
 export function buildCompanionCard(view: CardView, handlers: CardHandlers): HTMLDivElement {
-  const root = el('div', undefined, { padding: '10px 12px', minWidth: '240px', maxWidth: '320px', fontSize: '12px' });
+  // The client opens a plugin popup at half the viewport and we cannot ask it
+  // for less, so the card takes the whole width it is handed instead of sitting
+  // in a 320px column with empty window around it.
+  const root = el('div', undefined, { padding: '8px 10px', minWidth: '220px', width: '100%', boxSizing: 'border-box', fontSize: '12px' });
   const { state } = view;
 
   if (!state || !view.characterName) {
     root.appendChild(el('div', 'Towarzysz czeka, az klient poda imie postaci.'));
-    root.appendChild(attribution());
     return root;
   }
 
@@ -328,25 +346,7 @@ export function buildCompanionCard(view: CardView, handlers: CardHandlers): HTML
   actions.appendChild(button('Przejdz sie', handlers.onAmbient));
   actions.appendChild(pictureButton(handlers));
   root.appendChild(actions);
-
-  root.appendChild(attribution());
   return root;
 }
 
-function attribution(): HTMLDivElement {
-  const box = el('div', undefined, { marginTop: '10px', paddingTop: '6px', borderTop: '1px solid rgba(128,128,128,.35)', fontSize: '10px', opacity: '0.75' });
-  box.appendChild(document.createTextNode("Grafika: wlasne pikselowe sprite'y - "));
-  const link = el('a', 'arkadia-towarzysz');
-  link.href = ATTRIBUTION_URL;
-  link.target = '_blank';
-  link.rel = 'noopener noreferrer';
-  box.appendChild(link);
-  box.appendChild(document.createTextNode('. Zestaw animacji wzorowany na '));
-  const mixer = el('a', "KingBell's Pixel Art Sprite Mixer");
-  mixer.href = MIXER_URL;
-  mixer.target = '_blank';
-  mixer.rel = 'noopener noreferrer';
-  box.appendChild(mixer);
-  box.appendChild(document.createTextNode('. Komendy: /towarzysz, /towarzysz cisza.'));
-  return box;
-}
+
