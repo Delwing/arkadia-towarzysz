@@ -141,12 +141,20 @@ after your third death.
 
 ## Name pools
 
-One pool per archetype, so the name matches what you were dealt. All ASCII-folded.
+One pool per archetype family, so the name matches what you were dealt. Roughly 880 names
+in all, so two companions rarely share one. All ASCII-folded, and all masculine or
+genderless: the sprite has a single body with no female looks, so a `Bozena` would be a
+name with nothing behind it. `companion/names.ts` holds them, `test/names.test.ts` guards
+the shape.
 
-| Archetype | Pool |
-|---|---|
-| villager, magician, wizard | Vesna, Milena, Radost, Zbrozek, Dobrawa, Jarogniew, Wysza, Lutobor, Swietlana, Chwalibog, Niegoslaw, Ratmir, Bozena, Sulislaw, Dziwisz, Rada |
-| orc, goblin, ogre, monster | Zgrzyt, Grzmot, Brzyd, Klak, Wyrko, Szczerb, Mlask, Kudl, Chrup, Bulgot, Zgaga, Truchlo |
+| Archetype | Pool | Flavour | Sample |
+|---|---|---|---|
+| villager | `VILLAGER_NAMES` (266) | old Polish and Slavic given names, the everyday sort | Zbrozek, Goscirad, Wrociwoj, Zbylut |
+| magician, wizard | `MAGE_NAMES` (149) | dithematic names, the old gods, the folk-magic trades, magical herbs | Czaroslaw, Swarozyc, Planetnik, Piolun |
+| orc | `ORC_NAMES` (110) | noise, teeth and ironmongery | Zgrzyt, Charkot, Berdysz, Wrzod |
+| goblin | `GOBLIN_NAMES` (143) | short and snickering - vermin, scraps, small-time crooks | Klak, Chochlik, Rzezimieszek, Nochal |
+| ogre | `OGRE_NAMES` (100) | weight, timber and appetite, led by the folk giants | Waligora, Wyrwidab, Kloc, Zarlok |
+| monster | `MONSTER_NAMES` (111) | the folklore bestiary, and what it leaves behind | Strzygon, Utopiec, Boruta, Pomor |
 
 ## Voice and restraint
 

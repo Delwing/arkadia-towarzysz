@@ -92,9 +92,13 @@ export function normalizeState(raw: unknown, characterName: string, now = Date.n
 
   const rerollsUsed = Math.min(MAX_REROLLS, Math.max(0, Math.floor(finite(value.rerollsUsed, 0))));
 
-  // The spec must match its seed. If it does not - hand-edited storage, or a
-  // change to the roll - trust the seed, which is what "you never lose your
-  // companion" promises.
+  // A stored spec is kept as long as it holds together structurally - it is not
+  // checked against the seed. That is deliberate: the companion you have met is
+  // the companion you keep, even after the roll changes underneath it. A name
+  // retired from its pool survives here, and so does a colour we no longer roll.
+  // Only a spec that is broken - hand-edited storage, an archetype or voice that
+  // no longer exists - falls back to the seed, which is the one thing that can
+  // always be recomputed.
   const expected = roll(characterName, rerollsUsed);
   const spec = isValidSpec(value.spec) ? value.spec : expected;
 

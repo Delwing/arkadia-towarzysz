@@ -163,6 +163,20 @@ describe('money lines', () => {
     expect(h.events).toEqual([{ type: 'spend', copper: 9 * 12 + 30 }]);
   });
 
+  it('reads the price out of the shopkeeper taking it in exchange for goods', () => {
+    const h = harness();
+    h.client.line(
+      'Chudy brodaty mezczyzna odbiera od ciebie dwie srebrne i trzy miedziane monety w zamian za zakupiony towar.',
+    );
+    expect(h.events).toEqual([{ type: 'spend', copper: 2 * 12 + 3 }]);
+  });
+
+  it('ignores a handover that is not a purchase', () => {
+    const h = harness();
+    h.client.line('Chudy brodaty mezczyzna odbiera od ciebie dwie srebrne monety i kiwa glowa.');
+    expect(h.events).toEqual([]);
+  });
+
   it('still reports a spend when the line gives no price', () => {
     const h = harness();
     h.client.line('Kupujesz bochenek chleba.');

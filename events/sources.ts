@@ -19,12 +19,20 @@ export const CHAR_INFO_SETTLE_MS = 50;
 /** Coin-bearing lines. Anything without "monet" in it parses to 0 copper and is ignored. */
 export const LOOT_PATTERNS: RegExp[] = [/^Bierzesz (.+)\.$/, /^Dostajesz (.+)\.$/, /wyplaca ci (.+) monet/];
 /**
- * Spending. `zgarnia` is the shopkeeper's side of a purchase - "Usmiechniety
+ * Spending. The last two are the shopkeeper's side of a purchase - "Usmiechniety
  * dojrzaly mezczyzna drapieznym ruchem zgarnia 9 srebrnych i 30 miedzianych
- * monet." - and it is the only one of these that says how much, so the line is
- * parsed for coins the same way loot is.
+ * monet.", "Chudy brodaty mezczyzna odbiera od ciebie dwie srebrne i trzy
+ * miedziane monety w zamian za zakupiony towar." - and they are the only ones
+ * that say how much, so the line is parsed for coins the same way loot is. The
+ * `odbiera` one keeps its "za zakupiony towar" tail: without it the phrase is
+ * any handover at all, a quest hand-in included.
  */
-export const SPEND_PATTERNS: RegExp[] = [/^Kupujesz /, /^Placisz /, /zgarnia .* monet/];
+export const SPEND_PATTERNS: RegExp[] = [
+  /^Kupujesz /,
+  /^Placisz /,
+  /zgarnia .* monet/,
+  /odbiera od ciebie .* monet.* w zamian za zakupion/,
+];
 /** Selling goods. The payment, when the game prints one, arrives as its own loot line. */
 export const SELL_PATTERNS: RegExp[] = [/^Sprzedajesz /];
 /**

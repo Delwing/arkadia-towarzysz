@@ -269,10 +269,13 @@ about the client or the registry and had to bend. Each one is easy to revisit.
     accepts it only when the run that follows - connectors, amounts, further
     metals - ends in `monet...`. That last condition is what keeps "dwie surowe
     czerwonozlote ryby" from being valued as gold.
-12. **Spend**: `Kupujesz ...`, `Placisz ...`, and `... zgarnia ... monet` - the
-    shopkeeper's side of a purchase, and the only one of the three that says
-    how much, so the line is parsed for coins and the slump scales with the
-    price. Mood is untouched either way: spending is not a mood event.
+12. **Spend**: `Kupujesz ...`, `Placisz ...`, and the shopkeeper's two ways of taking
+    the money - `... zgarnia ... monet` and `... odbiera od ciebie ... monet ... w
+    zamian za zakupiony towar`. Those last two are the only ones that say how much,
+    so the line is parsed for coins and the slump scales with the price. The
+    `odbiera` pattern keeps its "za zakupiony towar" tail on purpose: without it the
+    phrase covers any handover, a quest hand-in included. Mood is untouched either
+    way: spending is not a mood event.
 12b. **Sell** (`Sprzedajesz ...`) is its own event and speech category. It is a
     deliberately quiet reaction, because when the game prints the payment it
     arrives on the next line and fires a full `loot` of its own; the sale is
