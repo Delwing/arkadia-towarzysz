@@ -396,8 +396,12 @@ so a stone found while nothing was holding the cooldown does not spend it.
 ## Storage
 
 One key per character in localStorage: `plugin:towarzysz:<characterName>`.
-The companion is a deterministic function of the character name and the
-number of rerolls used, so losing storage does not lose the companion. Nothing
+The companion is a deterministic function of the character name, the number of
+rerolls used and `SEED_GENERATION`, so losing storage does not lose the
+companion. The generation is the one lever that deals everybody a different
+companion; a save written before a bump keeps the companion it holds, because
+a stored spec is trusted over the seed, so a bump reaches a character through a
+cleared storage or a fresh browser. Nothing
 rerolls it any more - the count only survives so that anyone who spent their one
 reroll while that existed keeps the companion it gave them. If
 localStorage is unavailable the plugin runs from memory for the session.

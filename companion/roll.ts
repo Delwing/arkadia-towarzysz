@@ -14,9 +14,20 @@ import { isHumanish, namePoolFor } from './names';
 import { VOICE_IDS } from '../voice/catalog';
 import { headVariants } from '../render/mixer';
 
-/** `hash(characterName + ":" + rerollsUsed)`, as the design fixes it. */
+/**
+ * The generation of the roll. It goes into the seed, so changing it deals
+ * everybody a different companion - it is the only way there is, the roll
+ * having no rerolls left in it. A companion already in localStorage is kept
+ * whatever this says (`companion/state.ts` trusts the save over the seed), so
+ * a bump reaches a character on a fresh browser or a cleared storage.
+ *
+ * '1' was the roll from the plugin's first release.
+ */
+export const SEED_GENERATION = '2';
+
+/** `hash(characterName + ":" + rerollsUsed + ":" + generation)`. */
 export function seedFor(characterName: string, rerollsUsed: number): number {
-  return hash(`${characterName}:${rerollsUsed}`);
+  return hash(`${characterName}:${rerollsUsed}:${SEED_GENERATION}`);
 }
 
 const HUMAN_SKIN = ['#f1c9a5', '#e0ac7e', '#c68e63', '#a26a45', '#7a4a2e', '#f6d7bf'];

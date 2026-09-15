@@ -645,6 +645,13 @@ about the client or the registry and had to bend. Each one is easy to revisit.
     it there would hand every character a different companion and orphan the
     saved one. `text/properName.ts` does it on the way out instead: the picture's
     bottom line and the line the plugin logs when the character loads.
+23m. **The seed carries a generation.** `seedFor` hashes
+    `name:rerolls:SEED_GENERATION`, and bumping that constant is the only way
+    left to deal everybody a different companion - there are no rerolls in the
+    roll any more, by design. It reaches a character the way any seed change
+    does: through a cleared localStorage or a fresh browser, because a stored
+    spec is trusted over the seed, so nobody loses a companion they have met.
+    '1' was the first release's roll; '2' is this one.
 23j. **A knight and an archer, and what they cost.** Two more archetypes, nine
     in all. The archetype is the first draw of the roll, so a longer list is not
     a free addition: from this version on, a seed computes a different companion

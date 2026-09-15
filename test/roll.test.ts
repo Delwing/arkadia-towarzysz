@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { isValidSpec, roll, seedFor } from '../companion/roll';
+import { isValidSpec, roll, seedFor, SEED_GENERATION } from '../companion/roll';
+import { hash } from '../companion/rng';
 import { ARCHETYPES } from '../companion/types';
 import { namePoolFor } from '../companion/names';
 import { VOICE_IDS } from '../voice/catalog';
@@ -75,6 +76,14 @@ describe('roll', () => {
   it('seeds follow the documented formula', () => {
     expect(seedFor('Dargoth', 0)).not.toBe(seedFor('Dargoth', 1));
     expect(seedFor('Dargoth', 0)).toBe(seedFor('Dargoth', 0));
+    expect(seedFor('Dargoth', 0)).toBe(hash(`Dargoth:0:${SEED_GENERATION}`));
+  });
+
+  it('a generation is a whole new set of companions', () => {
+    // What a bump does, spelled out: the same name and the same reroll count
+    // against another generation is a different seed, and so a different
+    // companion. Nobody with a save loses theirs - the save wins over the seed.
+    expect(hash(`Dargoth:0:${SEED_GENERATION}`)).not.toBe(hash('Dargoth:0:1'));
   });
 
   it('rejects broken specs', () => {
