@@ -27,6 +27,7 @@ import { buildSheet, type LoadedSheet } from './render/sheet';
 import { Chip } from './ui/chip';
 import { Bubble } from './ui/bubble';
 import { AMBIENT_LABELS, buildCompanionCard, type CardHandlers, type CardView } from './ui/card';
+import { copyPictureToClipboard, drawCompanionPicture, savePicture, type PictureOutcome } from './ui/picture';
 import {
   guardFor,
   POSTURE_ORDER,
@@ -574,7 +575,36 @@ class Towarzysz {
     return {
       onSaySomething: () => this.saySomething(),
       onAmbient: () => this.animator.playAmbient(animationNow()),
+      onPicture: (doc) => this.picture(doc),
     };
+  }
+
+  /**
+   * The companion's picture, to the clipboard - or, where the clipboard cannot
+   * be reached (an http page, an old browser), to a file instead.
+   *
+   * Drawn synchronously so that `copyPictureToClipboard` still runs inside the
+   * click that asked for it, which is what the clipboard requires.
+   */
+  private picture(doc: Document): Promise<PictureOutcome> {
+    const state = this.state;
+    const characterName = this.characterName;
+    if (!state || !characterName) return Promise.reject(new Error('nie ma jeszcze towarzysza'));
+    let canvas: HTMLCanvasElement;
+    try {
+      canvas = drawCompanionPicture({ characterName, state, mood: this.currentMood() }, this.sheet, doc);
+    } catch (error) {
+      log('nie udalo sie narysowac obrazka', error);
+      return Promise.reject(error instanceof Error ? error : new Error(String(error)));
+    }
+    return copyPictureToClipboard(canvas).then(
+      () => 'copied' as const,
+      (error) => {
+        log('schowek niedostepny - obrazek idzie na dysk', error);
+        savePicture(canvas, `towarzysz-${state.spec.name.toLowerCase()}.png`);
+        return 'saved' as const;
+      },
+    );
   }
 
   /** The portrait chip, built on first use and kept for the plugin's lifetime. */

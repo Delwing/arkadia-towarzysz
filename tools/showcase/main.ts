@@ -31,6 +31,7 @@ import { frameIndex } from '../../render/pose';
 import { CANVAS_H, CANVAS_W, Chip, PIXEL_SCALE } from '../../ui/chip';
 import { Bubble } from '../../ui/bubble';
 import { AMBIENT_LABELS, ARCHETYPE_LABELS, CATEGORY_LABELS, buildCompanionCard } from '../../ui/card';
+import { copyPictureToClipboard, drawCompanionPicture } from '../../ui/picture';
 import { resolve, type GameEvent } from '../../events/bindings';
 import { Speaker } from '../../voice/speak';
 import { VOICES, voiceName } from '../../voice/catalog';
@@ -227,6 +228,18 @@ function fire(event: GameEvent): void {
 
 const specBox = el('div');
 
+/** Where 'Kopiuj jako obraz' drops what it drew, so it can be looked at. */
+const pictureBox = el('div');
+
+function showPicture(canvas: HTMLCanvasElement): void {
+  canvas.style.maxWidth = '100%';
+  canvas.style.border = '1px solid var(--line)';
+  canvas.style.borderRadius = '4px';
+  pictureBox.textContent = '';
+  pictureBox.appendChild(canvas);
+  pictureBox.appendChild(el('div', 'caption', 'Obrazek, tak jak poszedl do schowka.'));
+}
+
 function refreshSpecPanel(): void {
   specBox.textContent = '';
   const line = el('div');
@@ -268,6 +281,25 @@ function refreshCard(): void {
       {
         onSaySomething: () => fire({ type: 'idle' }),
         onAmbient: () => animator.playAmbient(clock()),
+        // The real drawing, shown on the page as well as offered to the
+        // clipboard: a picture nobody can look at is hard to judge. The
+        // plugin's own fallback writes a file, which is not what you want
+        // going off every time you click this while developing.
+        onPicture: (doc) => {
+          const canvas = drawCompanionPicture(
+            { characterName: 'Delwing', state, mood: readMood(mood, now) },
+            sheet,
+            doc,
+          );
+          showPicture(canvas);
+          return copyPictureToClipboard(canvas).then(
+            () => 'copied' as const,
+            (error) => {
+              log(`schowek odmowil: <i>${String(error)}</i>`);
+              return 'saved' as const;
+            },
+          );
+        },
       },
     ),
   );
@@ -283,6 +315,8 @@ function cardPanel(): HTMLDivElement {
   cardBox.style.borderRadius = '6px';
   box.appendChild(cardBox);
   box.appendChild(el('div', 'caption', 'To jest okno /towarzysz. Statystyki sa zmyslone, reszta jest prawdziwa.'));
+  pictureBox.style.marginTop = '8px';
+  box.appendChild(pictureBox);
   refreshCard();
   return box;
 }

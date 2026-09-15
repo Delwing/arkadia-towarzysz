@@ -38,6 +38,10 @@ zapomnienia, nigdy system, ktory czegos od ciebie chce.
   postepy, przeobrazenie, koniec swiata i kamien wart co najmniej 2 mithryle
   odezwie sie nawet w trakcie przerwy - to te chwile, dla ktorych ta reakcja w ogole istnieje.
   Kamienie przebijaja przerwe najwyzej raz na 10 minut, bo trafiaja sie workami.
+- **Mozesz sie nim pochwalic** - `Kopiuj jako obraz` na karcie rysuje obrazek z
+  towarzyszem: kto to, jak wyglada, jaki ma dzisiaj nastroj i co razem
+  przeszliscie. Idzie do schowka - tak samo jak `Kopiuj jako obraz` w innych
+  oknach klienta - a gdy schowek jest niedostepny, zapisuje sie jako plik.
 - **Cztery glosy** - Wierny giermek, Zgryzliwy weteran, Ponury wieszcz,
   Maloomowny. Glos losuje sie niezaleznie od wygladu: goblin mowiacy jak
   ponury wieszcz to dokladnie ten rodzaj pary, dla ktorego warto losowac.

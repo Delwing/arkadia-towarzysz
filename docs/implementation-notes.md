@@ -615,9 +615,25 @@ about the client or the registry and had to bend. Each one is easy to revisit.
     not in the document.
 22c. The window uses `registerPersistentPopup` (so a pinned card is restored)
     and falls back to `createPopup` on an older client.
+22d. **"Kopiuj jako obraz"** (`ui/picture.ts`) draws the card's own contents on
+    one 344x170 canvas at two device pixels per logical one - the figure at
+    five, whole numbers only and smoothing off, or the pixels stop being
+    pixels - and puts it on the clipboard. The client offers the same thing in
+    Postepy, on the map and in the log browser, and always the same way: the
+    `Promise<Blob>` goes *inside* the `ClipboardItem` so the write happens in
+    the same turn as the click. Its helper
+    (`src/shared/dom/copyCanvasToClipboard.ts`) is not exposed to plugins, so
+    this is the same shape of thing built from what a plugin has. Two details
+    follow from that: nothing is awaited before the write (the plugin draws
+    synchronously and hands the promise over), and the canvas is created in the
+    *clicked* document, because the card can be popped out into a window of its
+    own and only the focused one may reach the clipboard. Where the clipboard
+    cannot be had at all - an http page, an old browser - it saves a file
+    instead, and the button says which of the two happened rather than printing
+    to the game window.
 23. Archetype labels on the card are the plain Polish nouns (`mag`,
     `goblin`...); they name the archetype, not the companion's gender.
-23b. `metAt` was added to the stored state for the card's "Razem od ...". A
+23b. `metAt` was added to the stored state for the card's "Towarzyszy od ...". A
     save that predates it is dated from the first load that finds it missing,
     and a date from the future is not believed.
 

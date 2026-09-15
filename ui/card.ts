@@ -1,7 +1,7 @@
 /**
  * The `/towarzysz` window: the companion's card. Who they are, what they look
- * like, how they feel and what you have been through together - and two ways
- * to poke them.
+ * like, how they feel and what you have been through together - two ways to
+ * poke them, and a picture of them to take away.
  *
  * Deliberately not a settings panel. The companion is rolled, not configured:
  * there is no reroll, no voice picker, no cooldown box and no mute grid here.
@@ -15,6 +15,7 @@ import type { AmbientLevel, Archetype, Category, PersistedState } from '../compa
 import { temperLabel } from '../companion/temper';
 import { bucketLabel } from '../companion/mood';
 import { voiceName } from '../voice/catalog';
+import type { PictureOutcome } from './picture';
 
 /** The plugin's own page; the sprite art is this repository's, so there is nobody else to credit. */
 export const ATTRIBUTION_URL = 'https://github.com/Delwing/arkadia-towarzysz';
@@ -98,6 +99,17 @@ export interface CardHandlers {
   onSaySomething(): void;
   /** One ambient action now: a walk, a blink, a warp. */
   onAmbient(): void;
+  /**
+   * Draw the companion's picture and put it somewhere the player can use it -
+   * the clipboard, or a file if the clipboard is out of reach. `doc` is the
+   * document the click came from, because the card can be popped out into a
+   * window of its own and only the focused one may touch the clipboard.
+   *
+   * Must reach the clipboard inside the click, so the plugin does the drawing
+   * synchronously and only the blob is awaited; the button reports whichever
+   * of the two happened.
+   */
+  onPicture(doc: Document): Promise<PictureOutcome>;
 }
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, text?: string, style?: Partial<CSSStyleDeclaration>): HTMLElementTagNameMap[K] {
@@ -216,10 +228,47 @@ function traits(state: PersistedState): string {
   return state.spec.parts.hairLong ? 'dlugie wlosy' : 'krotkie wlosy';
 }
 
+/**
+ * Since when. Flatly: "razem od" reads like an anniversary, which is not what
+ * a companion is - the picture says it the same way.
+ */
 function metLine(state: PersistedState): string {
   const since = new Date(state.metAt);
   const date = Number.isFinite(since.getTime()) ? since.toLocaleDateString('pl-PL') : '?';
-  return `Razem od ${date}.`;
+  return `Towarzyszy od ${date}.`;
+}
+
+/** How long the picture button says what it did before going back to itself. */
+const PICTURE_SAID_MS = 2200;
+
+/**
+ * "Kopiuj jako obraz", the same offer the client makes in Postepy and on the
+ * map. It reports back in its own label rather than in the game window: the
+ * companion does not print there, and a toast for something the player just
+ * asked for would be noise.
+ */
+function pictureButton(handlers: CardHandlers): HTMLButtonElement {
+  const label = 'Kopiuj jako obraz';
+  let busy = false;
+  const btn = button(label, () => {
+    if (busy) return;
+    busy = true;
+    const said = (text: string) => {
+      btn.textContent = text;
+      setTimeout(() => {
+        btn.textContent = label;
+        busy = false;
+      }, PICTURE_SAID_MS);
+    };
+    // Synchronous on purpose: the clipboard write has to happen inside this
+    // click, so nothing is awaited before `onPicture` is called.
+    handlers
+      .onPicture(btn.ownerDocument)
+      .then((outcome) => said(outcome === 'copied' ? 'Skopiowane!' : 'Zapisane jako plik'))
+      .catch(() => said('Nie udalo sie'));
+  });
+  btn.title = 'Obrazek z towarzyszem - do schowka, a jak sie nie da, to na dysk';
+  return btn;
 }
 
 /** Builds the card's DOM. Cheap, so the popup rebuilds it every time it opens. */
@@ -289,6 +338,7 @@ export function buildCompanionCard(view: CardView, handlers: CardHandlers): HTML
   const actions = el('div', undefined, { display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '10px' });
   actions.appendChild(button('Zagadnij', handlers.onSaySomething));
   actions.appendChild(button('Przejdz sie', handlers.onAmbient));
+  actions.appendChild(pictureButton(handlers));
   root.appendChild(actions);
 
   root.appendChild(attribution());

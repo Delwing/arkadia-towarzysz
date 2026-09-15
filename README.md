@@ -34,6 +34,7 @@ render/animator.ts     plays them: what interrupts what, breathing, blinking
 ui/chip.ts             footer component: canvas and name - and the card's portrait
 ui/bubble.ts           speech bubble, beside the chip and clear of the name
 ui/card.ts             the /towarzysz window: the companion's card
+ui/picture.ts          that card as one canvas, for the clipboard ("Kopiuj jako obraz")
 events/bindings.ts     game event -> (primitive, intensity, speech category, mood delta)
 events/sources.ts      client events and triggers -> game events
 text/polishNumbers.ts  "dwadziescia trzy" -> 23
