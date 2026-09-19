@@ -1,6 +1,6 @@
 {
   "name": "arkadia-towarzysz",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Arkadia Web Client plugin - a pixel-art companion in the footer who reacts to your session.",
   "private": true,
   "type": "module",

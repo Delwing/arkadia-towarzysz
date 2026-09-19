@@ -1,6 +1,6 @@
 {
   "name": "Towarzysz",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": "Dargoth",
   "description": "Pikselowy towarzysz w stopce - losowany raz na postac, reaguje na to, co dzieje sie w grze, czasem cos powie. Sterowanie: /towarzysz. Grafika: Pixel Art Sprite Mixer (KingBell, CC-BY 4.0).",
   "entryPoint": "plugin.ts",

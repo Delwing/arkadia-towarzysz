@@ -42,7 +42,7 @@ import { applyGender } from './voice/gender';
 import { coinsToCopper } from './text/coins';
 
 const PLUGIN_NAME = 'Towarzysz';
-const PLUGIN_VERSION = '1.0.0';
+const PLUGIN_VERSION = '1.0.1';
 const PLUGIN_AUTHOR = 'Dargoth';
 const PLUGIN_DESCRIPTION =
   'Pikselowy towarzysz w stopce - losowany raz na postac, reaguje na to, co dzieje sie w grze, czasem cos powie. ' +
