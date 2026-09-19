@@ -12,10 +12,16 @@
  */
 
 export const BUBBLE_Z_INDEX = 1105;
-export const BUBBLE_BASE_MS = 4000;
+/**
+ * The player is reading the game's output, not the footer, so the first
+ * seconds of a bubble go on noticing it. 4 s was reported as gone before it
+ * was read. Speech is rationed to one line per 45 s, so a long bubble never
+ * waits on the next.
+ */
+export const BUBBLE_BASE_MS = 10000;
 /** Longer lines stay a little longer. */
-export const BUBBLE_PER_CHAR_MS = 35;
-export const BUBBLE_MAX_MS = 7000;
+export const BUBBLE_PER_CHAR_MS = 90;
+export const BUBBLE_MAX_MS = 20000;
 /** The gap between the companion and the bubble beside them, in CSS pixels. */
 export const BUBBLE_GAP = 8;
 /**
