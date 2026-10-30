@@ -147,9 +147,9 @@ describe('respawn', () => {
     h.client.emit('reset', undefined);
     expect(h.respawns).toBe(1);
     h.client.emit('gmcp.char.info', { name: 'Delwing' });
-    // Including the one that follows a death we already reported: that reset is
-    // the respawn, and it is what puts the companion back on their feet.
-    h.client.line('Umierasz.');
+    // Including the one that follows a death: that reset is the respawn, and it
+    // is what puts the companion back on their feet.
+    h.client.emit('playerDeath');
     h.advance(3000);
     h.client.emit('reset', undefined);
     expect(h.respawns).toBe(2);
@@ -158,28 +158,41 @@ describe('respawn', () => {
 });
 
 describe('death', () => {
-  it('fires on "Umierasz.", the line the game actually prints', () => {
+  it('fires on the client\'s playerDeath, its trigger on "Umierasz."', () => {
     const h = harness();
-    h.client.line('Umierasz.');
+    h.client.emit('playerDeath');
     expect(h.events).toEqual([{ type: 'death' }]);
   });
 
   it('does not fire again on the reset that follows the respawn', () => {
     const h = harness();
-    h.client.line('Umierasz.');
-    h.client.line('Oddalasz sie.');
-    // The respawn can be a long time later; the flag is what links them, not a window.
+    h.client.emit('playerDeath');
     h.advance(10 * 60_000);
     h.client.emit('reset');
     expect(h.events).toEqual([{ type: 'death' }]);
   });
 
-  it('still falls back to the reset heuristic when no line was seen', () => {
-    // The plugin attached into a session already under way, so the character
-    // was alive and wearing a body: a reset can only be the end of that life.
+  it('does not read the line itself, which is the client\'s to trigger on', () => {
+    const h = harness();
+    h.client.line('Umierasz.');
+    expect(h.events).toEqual([]);
+  });
+
+  it('does not take a reset in the middle of a session for a death', () => {
     const h = harness();
     h.client.emit('reset');
-    expect(h.events).toEqual([{ type: 'death' }]);
+    expect(h.events).toEqual([]);
+  });
+
+  it('does not take a zakoncz and a login as the same character for a death', () => {
+    const h = harness();
+    h.client.emit('client.disconnect');
+    // The avatar flag can name the new body before the Char.Info that fires
+    // the reset, so by the time it runs we are wearing one again.
+    h.client.emit('player.objectNum', 202);
+    h.client.emit('reset');
+    h.advance(BODY_SETTLE_MS * 4);
+    expect(h.events).toEqual([]);
   });
 
   it('does not take a login for a death', () => {
@@ -202,9 +215,9 @@ describe('death', () => {
 
   it('treats a second death as its own', () => {
     const h = harness();
-    h.client.line('Umierasz.');
+    h.client.emit('playerDeath');
     h.client.emit('reset');
-    h.client.line('Umierasz.');
+    h.client.emit('playerDeath');
     expect(h.events).toEqual([{ type: 'death' }, { type: 'death' }]);
   });
 
@@ -446,6 +459,7 @@ describe('bodies', () => {
   it('reads one with a reset behind it as a new life, not a new body', () => {
     const h = harness();
     // A death moves the number first and explains itself a tick later.
+    h.client.emit('playerDeath');
     h.client.emit('player.objectNum', 202);
     h.client.emit('reset');
     h.advance(BODY_SETTLE_MS * 4);
@@ -470,7 +484,7 @@ describe('bodies', () => {
 
   it('gets the companion up whenever the object number moves', () => {
     const h = harness();
-    h.client.line('Umierasz.');
+    h.client.emit('playerDeath');
     expect(h.respawns).toBe(0);
     h.client.emit('player.objectNum', 202);
     expect(h.respawns).toBe(1);

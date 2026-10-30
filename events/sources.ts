@@ -100,11 +100,6 @@ export const SPEND_PATTERNS: RegExp[] = [
 /** Selling goods. The payment, when the game prints one, arrives as its own loot line. */
 export const SELL_PATTERNS: RegExp[] = [/^Sprzedajesz /];
 /**
- * Dying. The game prints "Umierasz." and then "Oddalasz sie."; the first is the
- * moment, the second is the soul leaving, so only the first is the event.
- */
-export const DEATH_PATTERNS: RegExp[] = [/^Umierasz\.$/];
-/**
  * Drink, and the head after it. Both are `Char.State` numbers and are read the
  * way `improve` and `hp` are, not off the text. The client's own bars are the
  * scale: `intox` ("UPI") runs 0..9 and `headache` ("KAC") 0..6, both 0 by
@@ -197,6 +192,12 @@ interface UndeclaredEvents {
    * a disconnect, or between a body swap and working the new id out.
    */
   'player.objectNum': number | undefined;
+  /**
+   * The character died: the client's own trigger on "Umierasz.", the one line
+   * the game announces it with. Anchored, so "Umierasz z glodu." and the like -
+   * warnings - do not count.
+   */
+  playerDeath: undefined;
   /** A field of knowledge grew. */
   knowledgeTickEvent: { category?: unknown; dative?: unknown } | undefined;
   /** The last enemy in the room went down. */
@@ -297,8 +298,6 @@ export function attachSources(api: PluginApi, handlers: SourceHandlers, options:
   let lastHp: number | null = null;
   /** The object we last knew ourselves to be; null while that is unknown. */
   let bodyNum: number | null = null;
-  /** Whether we have worn a body at all since the last disconnect. */
-  let hadBody = false;
   let lastResetAt = -Infinity;
   let bodyTimer: unknown = null;
   /** Kills since the room was last cleared, which is the size of the group. */
@@ -308,12 +307,6 @@ export function attachSources(api: PluginApi, handlers: SourceHandlers, options:
   /** The client's own fishing state, so only the changes are read. */
   let fishingState: string | null = null;
   let aboard = false;
-  /**
-   * A death we already reacted to because the game said "Umierasz.". The
-   * `reset` that follows it on respawn is the same death - which may be many
-   * seconds later, so this is a flag and not a time window.
-   */
-  let deathReported = false;
   /**
    * The last stage of drunkenness and of headache seen. `null` in
    * either means nothing has been read yet, so the next reading is a baseline
@@ -541,7 +534,6 @@ export function attachSources(api: PluginApi, handlers: SourceHandlers, options:
     if (payload === bodyNum) return;
     const previous = bodyNum;
     bodyNum = payload;
-    hadBody = true;
     // Whatever moved it, the character is standing in the room again: a
     // companion left lying by a death gets up now.
     handlers.onRespawn();
@@ -624,7 +616,6 @@ export function attachSources(api: PluginApi, handlers: SourceHandlers, options:
     if (!name) return;
     if (name !== characterName) {
       characterName = name;
-      deathReported = false;
       resetBaselines();
       resetBars();
       // Somebody else's evening: their rod, their ship, their aching head.
@@ -636,10 +627,12 @@ export function attachSources(api: PluginApi, handlers: SourceHandlers, options:
 
   /**
    * The client fires `reset` from its PlayerIdentity when a life ends: on
-   * login, on a character switch, and on a death and respawn. Which of those it
-   * is comes from whether we were already wearing a body - a login follows a
-   * disconnect, so we were not - and from the name, because a switch to another
-   * character has already changed it by the time this runs.
+   * login, on a character switch, and on a respawn. It is never read as the
+   * death itself. Telling the two apart by whether we were already wearing a
+   * body got `zakoncz` wrong: logging back in as the same character can name
+   * our new object before the Char.Info that fires the reset, and then a login
+   * looks exactly like a respawn. The death is `playerDeath`'s to announce;
+   * this is only the getting up.
    */
   const onReset = guard(() => {
     lastResetAt = now();
@@ -649,27 +642,25 @@ export function attachSources(api: PluginApi, handlers: SourceHandlers, options:
     // by a death gets up now.
     handlers.onRespawn();
     endStun();
-    const currentName = readGmcpName(api);
-    const sameCharacter = characterName !== null && (currentName === null || currentName === characterName);
-    const wasAlive = hadBody;
     resetBaselines();
-    // The text trigger is the authoritative one; this reset is its respawn.
-    if (deathReported) {
-      deathReported = false;
-      return;
-    }
-    if (wasAlive && sameCharacter) emit({ type: 'death' });
+  }, onError);
+
+  /**
+   * "Umierasz." The game prints "Oddalasz sie." after it, which is the soul
+   * leaving rather than the moment, and the respawn arrives as a `reset`
+   * whenever the player gets round to it.
+   */
+  const onDeath = guard(() => {
+    emit({ type: 'death' });
   }, onError);
 
   const onDisconnect = guard(() => {
     bodyNum = null;
-    hadBody = false;
     lastResetAt = -Infinity;
     clearBodyTimer();
     clearStunTimer();
     stunned = false;
     forgetPostures();
-    deathReported = false;
     resetBaselines();
     resetBars();
     clearIdle();
@@ -691,6 +682,7 @@ export function attachSources(api: PluginApi, handlers: SourceHandlers, options:
   api.events.on('client.disconnect', onDisconnect);
   api.events.on('command', onCommand);
   listen(api, 'player.objectNum', onObjectNum);
+  listen(api, 'playerDeath', onDeath);
   listen(api, 'allEnemiesKilled', onAllEnemiesKilled);
   listen(api, 'knowledgeTickEvent', onKnowledgeTick);
   listen(api, 'stunStart', onStunStart);
@@ -742,19 +734,6 @@ export function attachSources(api: PluginApi, handlers: SourceHandlers, options:
       TRIGGER_TAG,
     );
   }
-  for (const pattern of DEATH_PATTERNS) {
-    api.triggers.register(
-      pattern,
-      (line, matches) => {
-        passThrough(() => {
-          deathReported = true;
-          emit({ type: 'death' });
-        })(line as unknown as { text?: string }, matches);
-        return line;
-      },
-      TRIGGER_TAG,
-    );
-  }
   api.triggers.register(
     FISH_CAUGHT_PATTERN,
     (line, matches) => {
@@ -785,12 +764,11 @@ export function attachSources(api: PluginApi, handlers: SourceHandlers, options:
 
   // Seed the character from what the client already knows, then start the idle
   // clock. A name here means the plugin was loaded into a session already under
-  // way, so the character is alive and wearing a body: the next `reset` is a
-  // death and not a login.
+  // way, so the character is wearing a body and the next new one is a change of
+  // it rather than the first.
   const initialName = readGmcpName(api);
   if (initialName) {
     characterName = initialName;
-    hadBody = true;
     bodyNum = readGmcpObjectNum(api);
     guard(() => handlers.onCharacter(initialName), onError)();
   }
@@ -810,6 +788,7 @@ export function attachSources(api: PluginApi, handlers: SourceHandlers, options:
       api.events.off('client.disconnect', onDisconnect);
       api.events.off('command', onCommand);
       unlisten(api, 'player.objectNum', onObjectNum);
+      unlisten(api, 'playerDeath', onDeath);
       unlisten(api, 'allEnemiesKilled', onAllEnemiesKilled);
       unlisten(api, 'knowledgeTickEvent', onKnowledgeTick);
       unlisten(api, 'stunStart', onStunStart);
